@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "Laura",
+      "password_hash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
+    }
+  ],
+  "consulttypes": [
+    { "id": 1, "type": "Eerste consultatie", "prijs": 75.00 },
+    { "id": 2, "type": "Follow-up consultatie", "prijs": 50.00 },
+    { "id": 3, "type": "Telefonisch consult", "prijs": 25.00 }
+  ],
+  "mutualiteiten": [
+    { "id": 1, "naam": "CM", "maxSessiesPerJaar": 8, "opmerking": "CM zorgverzekering" },
+    { "id": 2, "naam": "Partena", "maxSessiesPerJaar": 6, "opmerking": "Partena mutualiteit" },
+    { "id": 3, "naam": "Helan", "maxSessiesPerJaar": 10, "opmerking": "Helan zorgverzekering" }
+  ],
+  "categorieen": [
+    { "id": 1, "categorie": "Kantoorbenodigdheden" },
+    { "id": 2, "categorie": "Marketing" },
+    { "id": 3, "categorie": "Opleiding" },
+    { "id": 4, "categorie": "Vervoer" }
+  ],
+  "klanten": [],
+  "afspraken": [],
+  "uitgaven": []
+}
