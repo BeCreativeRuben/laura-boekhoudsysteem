@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  laura-boekhouding:
+    build: .
+    container_name: laura-boekhouding
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./laura_boekhouding.db:/app/laura_boekhouding.db
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - laura-network
+
+networks:
+  laura-network:
+    driver: bridge
