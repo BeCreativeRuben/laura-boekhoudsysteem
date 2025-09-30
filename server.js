@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'laura_boekhouding_secret_key_2024_secure';
+const JWT_SECRET = process.env.JWT_SECRET || 'laura_boekhouding_secret_key_2024_secure';
 
 // Middleware
 app.use(cors());
@@ -34,8 +34,8 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// Database setup
-const db = new sqlite3.Database('./laura_boekhouding.db');
+// Database setup - use in-memory for serverless
+const db = new sqlite3.Database(':memory:');
 
 // Initialize database tables
 db.serialize(() => {
@@ -548,19 +548,24 @@ app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Laura Boekhoudsysteem server running on port ${PORT}`);
-});
+// Export for Vercel
+module.exports = app;
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('\nShutting down server...');
-    db.close((err) => {
-        if (err) {
-            console.error(err.message);
-        }
-        console.log('Database connection closed.');
-        process.exit(0);
+// Start server only if not in Vercel environment
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+        console.log(`Laura Boekhoudsysteem server running on port ${PORT}`);
     });
-});
+
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+        console.log('\nShutting down server...');
+        db.close((err) => {
+            if (err) {
+                console.error(err.message);
+            }
+            console.log('Database connection closed.');
+            process.exit(0);
+        });
+    });
+}
