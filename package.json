@@ -2,7 +2,7 @@
   "name": "laura-boekhoudsysteem",
   "version": "1.0.0",
   "description": "Web-based accounting system for sports dietitian Laura",
-  "main": "server-vercel.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
