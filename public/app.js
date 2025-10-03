@@ -704,8 +704,11 @@ class LauraBoekhouding {
                 await this.createKlant(data);
             }
             this.closeModal('klantModal');
-            await this.loadAllData();
-            this.showMessage('Klant succesvol opgeslagen!', 'success');
+            // Small delay to ensure server has processed the request
+            setTimeout(async () => {
+                await this.loadAllData();
+                this.showMessage('Klant succesvol opgeslagen!', 'success');
+            }, 100);
         } catch (error) {
             console.error('Error saving klant:', error);
             this.showMessage('Er is een fout opgetreden bij het opslaan van de klant', 'error');
@@ -731,8 +734,11 @@ class LauraBoekhouding {
                 await this.createConsulttype(data);
             }
             this.closeModal('consulttypeModal');
-            await this.loadAllData();
-            this.showMessage('Consulttype succesvol opgeslagen!', 'success');
+            // Small delay to ensure server has processed the request
+            setTimeout(async () => {
+                await this.loadAllData();
+                this.showMessage('Consulttype succesvol opgeslagen!', 'success');
+            }, 100);
         } catch (error) {
             console.error('Error saving consulttype:', error);
             this.showMessage('Er is een fout opgetreden bij het opslaan van het consulttype', 'error');
@@ -758,8 +764,11 @@ class LauraBoekhouding {
                 await this.createMutualiteit(data);
             }
             this.closeModal('mutualiteitModal');
-            await this.loadAllData();
-            this.showMessage('Mutualiteit succesvol opgeslagen!', 'success');
+            // Small delay to ensure server has processed the request
+            setTimeout(async () => {
+                await this.loadAllData();
+                this.showMessage('Mutualiteit succesvol opgeslagen!', 'success');
+            }, 100);
         } catch (error) {
             console.error('Error saving mutualiteit:', error);
             this.showMessage('Er is een fout opgetreden bij het opslaan van de mutualiteit', 'error');
@@ -780,8 +789,11 @@ class LauraBoekhouding {
                 await this.createCategorie(data);
             }
             this.closeModal('categorieModal');
-            await this.loadAllData();
-            this.showMessage('Categorie succesvol opgeslagen!', 'success');
+            // Small delay to ensure server has processed the request
+            setTimeout(async () => {
+                await this.loadAllData();
+                this.showMessage('Categorie succesvol opgeslagen!', 'success');
+            }, 100);
         } catch (error) {
             console.error('Error saving categorie:', error);
             this.showMessage('Er is een fout opgetreden bij het opslaan van de categorie', 'error');
@@ -808,8 +820,11 @@ class LauraBoekhouding {
                 await this.createAfspraak(data);
             }
             this.closeModal('afspraakModal');
-            await this.loadAllData();
-            this.showMessage('Afspraak succesvol opgeslagen!', 'success');
+            // Small delay to ensure server has processed the request
+            setTimeout(async () => {
+                await this.loadAllData();
+                this.showMessage('Afspraak succesvol opgeslagen!', 'success');
+            }, 100);
         } catch (error) {
             console.error('Error saving afspraak:', error);
             this.showMessage('Er is een fout opgetreden bij het opslaan van de afspraak', 'error');
@@ -836,8 +851,11 @@ class LauraBoekhouding {
                 await this.createUitgave(data);
             }
             this.closeModal('uitgaveModal');
-            await this.loadAllData();
-            this.showMessage('Uitgave succesvol opgeslagen!', 'success');
+            // Small delay to ensure server has processed the request
+            setTimeout(async () => {
+                await this.loadAllData();
+                this.showMessage('Uitgave succesvol opgeslagen!', 'success');
+            }, 100);
         } catch (error) {
             console.error('Error saving uitgave:', error);
             this.showMessage('Er is een fout opgetreden bij het opslaan van de uitgave', 'error');
