@@ -99,7 +99,17 @@
                     </div>
 
                     <div class="chart-container">
-                        <h2>Maandoverzicht</h2>
+                        <div class="chart-header">
+                            <h2>Maandoverzicht</h2>
+                            <div class="chart-actions">
+                                <button class="btn btn-secondary btn-sm" id="refreshChartBtn" title="Ververs grafiek">
+                                    <i class="fas fa-sync-alt"></i> Ververs
+                                </button>
+                                <button class="btn btn-success btn-sm" id="exportExcelBtn" title="Exporteer naar Excel">
+                                    <i class="fas fa-file-excel"></i> Excel
+                                </button>
+                            </div>
+                        </div>
                         <canvas id="monthlyChart" width="400" height="200"></canvas>
                     </div>
                 </div>
@@ -108,9 +118,14 @@
                 <div id="klanten-page" class="page">
                     <div class="page-header">
                         <h2>Klantenbeheer</h2>
-                        <button class="btn btn-primary" id="addKlantBtn">
-                            <i class="fas fa-plus"></i> Nieuwe Klant
-                        </button>
+                        <div class="page-actions">
+                            <button class="btn btn-success btn-sm" id="exportKlantenBtn" title="Exporteer klanten naar Excel">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn btn-primary" id="addKlantBtn">
+                                <i class="fas fa-plus"></i> Nieuwe Klant
+                            </button>
+                        </div>
                     </div>
                     <div class="table-container">
                         <table class="data-table" id="klantenTable">
@@ -136,9 +151,14 @@
                 <div id="afspraken-page" class="page">
                     <div class="page-header">
                         <h2>Afsprakenbeheer</h2>
-                        <button class="btn btn-primary" id="addAfspraakBtn">
-                            <i class="fas fa-plus"></i> Nieuwe Afspraak
-                        </button>
+                        <div class="page-actions">
+                            <button class="btn btn-success btn-sm" id="exportAfsprakenBtn" title="Exporteer afspraken naar Excel">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn btn-primary" id="addAfspraakBtn">
+                                <i class="fas fa-plus"></i> Nieuwe Afspraak
+                            </button>
+                        </div>
                     </div>
                     <div class="table-container">
                         <table class="data-table" id="afsprakenTable">
@@ -166,9 +186,14 @@
                 <div id="uitgaven-page" class="page">
                     <div class="page-header">
                         <h2>Uitgavenbeheer</h2>
-                        <button class="btn btn-primary" id="addUitgaveBtn">
-                            <i class="fas fa-plus"></i> Nieuwe Uitgave
-                        </button>
+                        <div class="page-actions">
+                            <button class="btn btn-success btn-sm" id="exportUitgavenBtn" title="Exporteer uitgaven naar Excel">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn btn-primary" id="addUitgaveBtn">
+                                <i class="fas fa-plus"></i> Nieuwe Uitgave
+                            </button>
+                        </div>
                     </div>
                     <div class="table-container">
                         <table class="data-table" id="uitgavenTable">
@@ -501,6 +526,7 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

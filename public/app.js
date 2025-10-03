@@ -64,6 +64,13 @@ class LauraBoekhouding {
         document.getElementById('addMutualiteitBtn').addEventListener('click', () => this.openMutualiteitModal());
         document.getElementById('addCategorieBtn').addEventListener('click', () => this.openCategorieModal());
 
+        // Export buttons
+        document.getElementById('exportExcelBtn').addEventListener('click', () => this.exportAllToExcel());
+        document.getElementById('exportKlantenBtn').addEventListener('click', () => this.exportKlantenToExcel());
+        document.getElementById('exportAfsprakenBtn').addEventListener('click', () => this.exportAfsprakenToExcel());
+        document.getElementById('exportUitgavenBtn').addEventListener('click', () => this.exportUitgavenToExcel());
+        document.getElementById('refreshChartBtn').addEventListener('click', () => this.refreshChart());
+
         // Modal close buttons
         document.getElementById('klantModalClose').addEventListener('click', () => this.closeModal('klantModal'));
         document.getElementById('afspraakModalClose').addEventListener('click', () => this.closeModal('afspraakModal'));
@@ -1053,6 +1060,201 @@ class LauraBoekhouding {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    // Excel Export Functions
+    exportAllToExcel() {
+        const workbook = XLSX.utils.book_new();
+        
+        // Add all sheets
+        this.addKlantenSheet(workbook);
+        this.addAfsprakenSheet(workbook);
+        this.addUitgavenSheet(workbook);
+        this.addDashboardSheet(workbook);
+        this.addInstellingenSheet(workbook);
+        
+        // Generate filename with current date
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `Laura_Boekhouding_${dateStr}.xlsx`;
+        
+        // Download file
+        XLSX.writeFile(workbook, filename);
+        this.showMessage('Alle gegevens geëxporteerd naar Excel!', 'success');
+    }
+
+    exportKlantenToExcel() {
+        const worksheet = XLSX.utils.json_to_sheet(this.data.klanten.map(klant => ({
+            'ID': klant.id,
+            'Voornaam': klant.voornaam,
+            'Achternaam': klant.achternaam,
+            'Email': klant.email || '',
+            'Telefoon': klant.telefoon || '',
+            'Startdatum': klant.startdatum ? new Date(klant.startdatum).toLocaleDateString('nl-NL') : '',
+            'Mutualiteit': klant.mutualiteit_naam || ''
+        })));
+        
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Klanten');
+        
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `Klanten_${dateStr}.xlsx`;
+        
+        XLSX.writeFile(workbook, filename);
+        this.showMessage('Klanten geëxporteerd naar Excel!', 'success');
+    }
+
+    exportAfsprakenToExcel() {
+        const worksheet = XLSX.utils.json_to_sheet(this.data.afspraken.map(afspraak => ({
+            'Datum': new Date(afspraak.datum).toLocaleDateString('nl-NL'),
+            'Klant': `${afspraak.voornaam} ${afspraak.achternaam}`,
+            'Type': afspraak.type,
+            'Aantal': afspraak.aantal,
+            'Prijs': afspraak.prijs ? `€${afspraak.prijs.toFixed(2)}` : '€0.00',
+            'Totaal': afspraak.totaal ? `€${afspraak.totaal.toFixed(2)}` : '€0.00',
+            'Terugbetaalbaar': afspraak.terugbetaalbaar ? 'Ja' : 'Nee',
+            'Opmerking': afspraak.opmerking || '',
+            'PDF': afspraak.pdf_bestand || ''
+        })));
+        
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Afspraken');
+        
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `Afspraken_${dateStr}.xlsx`;
+        
+        XLSX.writeFile(workbook, filename);
+        this.showMessage('Afspraken geëxporteerd naar Excel!', 'success');
+    }
+
+    exportUitgavenToExcel() {
+        const worksheet = XLSX.utils.json_to_sheet(this.data.uitgaven.map(uitgave => ({
+            'Datum': new Date(uitgave.datum).toLocaleDateString('nl-NL'),
+            'Beschrijving': uitgave.beschrijving,
+            'Categorie': uitgave.categorie_naam || '',
+            'Bedrag': `€${uitgave.bedrag.toFixed(2)}`,
+            'Betaalmethode': uitgave.betaalmethode || '',
+            'Opmerking': uitgave.opmerking || ''
+        })));
+        
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Uitgaven');
+        
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `Uitgaven_${dateStr}.xlsx`;
+        
+        XLSX.writeFile(workbook, filename);
+        this.showMessage('Uitgaven geëxporteerd naar Excel!', 'success');
+    }
+
+    refreshChart() {
+        this.updateDashboard();
+        this.showMessage('Grafiek ververst!', 'success');
+    }
+
+    // Helper functions for complete Excel export
+    addKlantenSheet(workbook) {
+        const data = this.data.klanten.map(klant => ({
+            'ID': klant.id,
+            'Voornaam': klant.voornaam,
+            'Achternaam': klant.achternaam,
+            'Email': klant.email || '',
+            'Telefoon': klant.telefoon || '',
+            'Startdatum': klant.startdatum ? new Date(klant.startdatum).toLocaleDateString('nl-NL') : '',
+            'Mutualiteit': klant.mutualiteit_naam || ''
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Klanten');
+    }
+
+    addAfsprakenSheet(workbook) {
+        const data = this.data.afspraken.map(afspraak => ({
+            'Datum': new Date(afspraak.datum).toLocaleDateString('nl-NL'),
+            'Klant': `${afspraak.voornaam} ${afspraak.achternaam}`,
+            'Type': afspraak.type,
+            'Aantal': afspraak.aantal,
+            'Prijs': afspraak.prijs || 0,
+            'Totaal': afspraak.totaal || 0,
+            'Terugbetaalbaar': afspraak.terugbetaalbaar ? 'Ja' : 'Nee',
+            'Opmerking': afspraak.opmerking || '',
+            'PDF': afspraak.pdf_bestand || ''
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Afspraken');
+    }
+
+    addUitgavenSheet(workbook) {
+        const data = this.data.uitgaven.map(uitgave => ({
+            'Datum': new Date(uitgave.datum).toLocaleDateString('nl-NL'),
+            'Beschrijving': uitgave.beschrijving,
+            'Categorie': uitgave.categorie_naam || '',
+            'Bedrag': uitgave.bedrag || 0,
+            'Betaalmethode': uitgave.betaalmethode || '',
+            'Opmerking': uitgave.opmerking || ''
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Uitgaven');
+    }
+
+    addDashboardSheet(workbook) {
+        const data = [
+            ['Dashboard Overzicht'],
+            [''],
+            ['Totaal Inkomsten', this.data.dashboard.inkomsten || 0],
+            ['Totaal Uitgaven', this.data.dashboard.uitgaven || 0],
+            ['Netto Resultaat', this.data.dashboard.netto || 0],
+            [''],
+            ['Maandoverzicht'],
+            ['Maand', 'Inkomsten', 'Uitgaven', 'Netto']
+        ];
+        
+        // Add monthly data
+        this.data.maandoverzicht.forEach(maand => {
+            data.push([
+                maand.maand,
+                maand.inkomsten || 0,
+                maand.uitgaven || 0,
+                (maand.inkomsten || 0) - (maand.uitgaven || 0)
+            ]);
+        });
+        
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Dashboard');
+    }
+
+    addInstellingenSheet(workbook) {
+        const data = [
+            ['Instellingen'],
+            [''],
+            ['Consultatietypes'],
+            ['Type', 'Prijs']
+        ];
+        
+        this.data.consulttypes.forEach(type => {
+            data.push([type.type, type.prijs || 0]);
+        });
+        
+        data.push(['', '']);
+        data.push(['Mutualiteiten']);
+        data.push(['Naam', 'Max Sessies/Jaar', 'Opmerking']);
+        
+        this.data.mutualiteiten.forEach(mut => {
+            data.push([mut.naam, mut.maxSessiesPerJaar || '', mut.opmerking || '']);
+        });
+        
+        data.push(['', '']);
+        data.push(['Categorieën']);
+        data.push(['Categorie']);
+        
+        this.data.categorieen.forEach(cat => {
+            data.push([cat.categorie]);
+        });
+        
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Instellingen');
     }
 
     showMessage(message, type = 'success') {

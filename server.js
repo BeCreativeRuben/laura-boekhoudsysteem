@@ -70,8 +70,8 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// Database setup - use in-memory for serverless
-const db = new sqlite3.Database(':memory:');
+// Database setup - use persistent file for local installation
+const db = new sqlite3.Database('laura_boekhouding.db');
 
 // Initialize database tables
 db.serialize(() => {
