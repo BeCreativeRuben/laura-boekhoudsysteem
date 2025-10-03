@@ -1076,7 +1076,7 @@ class LauraBoekhouding {
         // Generate filename with current date
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
-        const filename = `Laura_Boekhouding_${dateStr}.xlsx`;
+        const filename = `Dietist_Laura_${dateStr}.xlsx`;
         
         // Download file
         XLSX.writeFile(workbook, filename);

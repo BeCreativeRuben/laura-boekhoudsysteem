@@ -1,4 +1,4 @@
-# Laura Boekhoudsysteem - Lokale Installatie
+# Diëtist Laura - Boekhoudsysteem
 
 Een moderne web-gebaseerde boekhoudingssysteem voor diëtistenpraktijk Laura, speciaal ontwikkeld voor lokale installatie op de computer van de klant.
 
@@ -181,4 +181,4 @@ Ontwikkeld door BeCreativeRuben voor Laura's diëtistenpraktijk.
 
 ---
 
-**Veel succes met het gebruik van het Laura Boekhoudsysteem!** 🎉
+**Veel succes met het gebruik van Diëtist Laura!** 🎉

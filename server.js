@@ -592,7 +592,7 @@ module.exports = app;
 // Start server only if not in Vercel environment
 if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
     app.listen(PORT, () => {
-        console.log(`Laura Boekhoudsysteem server running on port ${PORT}`);
+        console.log(`Diëtist Laura server running on port ${PORT}`);
     });
 
     // Graceful shutdown
