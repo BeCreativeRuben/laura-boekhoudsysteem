@@ -151,6 +151,7 @@
                                     <th>Prijs</th>
                                     <th>Totaal</th>
                                     <th>Terugbetaalbaar</th>
+                                    <th>PDF</th>
                                     <th>Acties</th>
                                 </tr>
                             </thead>
@@ -374,6 +375,11 @@
                 <div class="form-group">
                     <label for="opmerking">Opmerking</label>
                     <textarea id="opmerking" name="opmerking" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="pdfUpload">PDF Document (optioneel)</label>
+                    <input type="file" id="pdfUpload" name="pdf" accept=".pdf" />
+                    <small class="form-text">Alleen PDF bestanden zijn toegestaan (max 10MB)</small>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="afspraakCancelBtn">Annuleren</button>

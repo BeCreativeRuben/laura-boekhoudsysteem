@@ -5,6 +5,8 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +17,40 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        // Generate unique filename with timestamp
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'afspraak-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Only allow PDF files
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Alleen PDF bestanden zijn toegestaan'), false);
+        }
+    }
+});
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -92,6 +128,7 @@ db.serialize(() => {
         terugbetaalbaar BOOLEAN DEFAULT 0,
         opmerking TEXT,
         maand DATE,
+        pdf_bestand TEXT,
         FOREIGN KEY (klant_id) REFERENCES klanten (id),
         FOREIGN KEY (type_id) REFERENCES consulttypes (id)
     )`);
@@ -378,8 +415,9 @@ app.get('/api/afspraken', (req, res) => {
     });
 });
 
-app.post('/api/afspraken', (req, res) => {
+app.post('/api/afspraken', upload.single('pdf'), (req, res) => {
     const { datum, klant_id, type_id, aantal, terugbetaalbaar, opmerking } = req.body;
+    const pdf_bestand = req.file ? req.file.filename : null;
     
     // Get the price for this consultation type
     db.get("SELECT prijs FROM consulttypes WHERE id = ?", [type_id], (err, row) => {
@@ -393,8 +431,8 @@ app.post('/api/afspraken', (req, res) => {
         const maand = new Date(datum);
         maand.setDate(1);
         
-        db.run("INSERT INTO afspraken (datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking, maand) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-               [datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking, maand.toISOString().split('T')[0]], function(err) {
+        db.run("INSERT INTO afspraken (datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking, maand, pdf_bestand) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+               [datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking, maand.toISOString().split('T')[0], pdf_bestand], function(err) {
             if (err) {
                 res.status(500).json({ error: err.message });
                 return;

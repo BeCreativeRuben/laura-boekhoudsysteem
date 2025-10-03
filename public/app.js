@@ -292,7 +292,7 @@ class LauraBoekhouding {
         if (this.data.afspraken.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="empty-state">
+                    <td colspan="9" class="empty-state">
                         <i class="fas fa-calendar-alt"></i>
                         <h3>Geen afspraken gevonden</h3>
                         <p>Voeg je eerste afspraak toe om te beginnen</p>
@@ -304,6 +304,12 @@ class LauraBoekhouding {
 
         this.data.afspraken.forEach(afspraak => {
             const row = document.createElement('tr');
+            const pdfButton = afspraak.pdf_bestand ? 
+                `<button class="btn btn-sm btn-info" onclick="app.downloadPDF('${afspraak.pdf_bestand}')" title="Download PDF">
+                    <i class="fas fa-file-pdf"></i>
+                </button>` : 
+                '<span class="text-muted">-</span>';
+            
             row.innerHTML = `
                 <td>${new Date(afspraak.datum).toLocaleDateString('nl-NL')}</td>
                 <td>${afspraak.voornaam} ${afspraak.achternaam}</td>
@@ -312,6 +318,7 @@ class LauraBoekhouding {
                 <td>€${afspraak.prijs ? afspraak.prijs.toFixed(2) : '0.00'}</td>
                 <td>€${afspraak.totaal ? afspraak.totaal.toFixed(2) : '0.00'}</td>
                 <td>${afspraak.terugbetaalbaar ? 'Ja' : 'Nee'}</td>
+                <td>${pdfButton}</td>
                 <td>
                     <button class="btn btn-sm btn-secondary" onclick="app.editAfspraak(${afspraak.id})">
                         <i class="fas fa-edit"></i>
@@ -803,21 +810,21 @@ class LauraBoekhouding {
     async handleAfspraakSubmit(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
         
         // Convert to appropriate types
-        data.klant_id = parseInt(data.klant_id);
-        data.type_id = parseInt(data.type_id);
-        data.aantal = parseInt(data.aantal);
-        data.terugbetaalbaar = data.terugbetaalbaar === '1';
+        formData.set('klant_id', parseInt(formData.get('klant_id')));
+        formData.set('type_id', parseInt(formData.get('type_id')));
+        formData.set('aantal', parseInt(formData.get('aantal')));
+        formData.set('terugbetaalbaar', formData.get('terugbetaalbaar') === '1');
 
         try {
             if (e.target.dataset.id) {
-                // Update existing afspraak
-                await this.updateAfspraak(e.target.dataset.id, data);
+                // Update existing afspraak (not implemented yet)
+                this.showMessage('Bewerken van afspraken met PDF is nog niet geïmplementeerd', 'error');
+                return;
             } else {
                 // Create new afspraak
-                await this.createAfspraak(data);
+                await this.createAfspraak(formData);
             }
             this.closeModal('afspraakModal');
             // Small delay to ensure server has processed the request
@@ -881,8 +888,25 @@ class LauraBoekhouding {
         return await response.json();
     }
 
-    async createAfspraak(data) {
-        return await this.postData('/api/afspraken', data);
+    async createAfspraak(formData) {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/afspraken', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
     }
 
     async updateAfspraak(id, data) {
@@ -1019,6 +1043,16 @@ class LauraBoekhouding {
     logout() {
         localStorage.removeItem('authToken');
         window.location.href = '/login';
+    }
+
+    downloadPDF(filename) {
+        const link = document.createElement('a');
+        link.href = `/uploads/${filename}`;
+        link.download = filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     showMessage(message, type = 'success') {
