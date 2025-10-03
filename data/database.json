@@ -12,9 +12,46 @@
     { "id": 3, "type": "Telefonisch consult", "prijs": 25.00 }
   ],
   "mutualiteiten": [
-    { "id": 1, "naam": "CM", "maxSessiesPerJaar": 8, "opmerking": "CM zorgverzekering" },
-    { "id": 2, "naam": "Partena", "maxSessiesPerJaar": 6, "opmerking": "Partena mutualiteit" },
-    { "id": 3, "naam": "Helan", "maxSessiesPerJaar": 10, "opmerking": "Helan zorgverzekering" }
+    { 
+      "id": 1, 
+      "naam": "CM", 
+      "maxSessiesPerJaar": null, 
+      "opmerking": "Betaalt jaarlijks tot €40 terug voor voedings- en dieetadvies van een RIZIV-erkende diëtist, inclusief online cursussen",
+      "terugbetalingPerJaar": 40,
+      "terugbetalingPerSessie": null
+    },
+    { 
+      "id": 2, 
+      "naam": "Solidaris", 
+      "maxSessiesPerJaar": null, 
+      "opmerking": "Biedt een terugbetaling voor advies van een erkende diëtist en voor begeleidingsprogramma's tegen obesitas",
+      "terugbetalingPerJaar": null,
+      "terugbetalingPerSessie": null
+    },
+    { 
+      "id": 3, 
+      "naam": "Neutrale Ziekenfonds Vlaanderen (NZVL)", 
+      "maxSessiesPerJaar": null, 
+      "opmerking": "Biedt tot €40 terug voor advies bij een erkende diëtist en een tussenkomst in gezonde fitheidsprogramma's",
+      "terugbetalingPerJaar": 40,
+      "terugbetalingPerSessie": null
+    },
+    { 
+      "id": 4, 
+      "naam": "Liberale Mutualiteit (LM)", 
+      "maxSessiesPerJaar": 6, 
+      "opmerking": "Biedt een tussenkomst van €5 per consultatie, tot maximaal €30 per jaar",
+      "terugbetalingPerJaar": 30,
+      "terugbetalingPerSessie": 5
+    },
+    { 
+      "id": 5, 
+      "naam": "Vlaams & Neutraal Ziekenfonds (VNZ)", 
+      "maxSessiesPerJaar": null, 
+      "opmerking": "Biedt tot €50 per jaar voor diëtistenbezoek",
+      "terugbetalingPerJaar": 50,
+      "terugbetalingPerSessie": null
+    }
   ],
   "categorieen": [
     { "id": 1, "categorie": "Kantoorbenodigdheden" },

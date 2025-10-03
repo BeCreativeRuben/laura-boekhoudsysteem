@@ -70,5 +70,5 @@ laura_boekhouding.db
 # Package lock file
 package-lock.json
 
-# Data directory (contains sensitive data)
-data/
+# Data directory (contains sensitive data) - temporarily allow for mutualiteiten update
+# data/
