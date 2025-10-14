@@ -16,7 +16,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'laura_boekhouding_secret_key_2024_
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static('.'));
 app.use('/uploads', express.static('uploads'));
 
 // Create uploads directory if it doesn't exist
@@ -578,12 +578,12 @@ app.get('/api/terugbetaling-signalen', (req, res) => {
 
 // Serve the main page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Serve login page
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 // Export for Vercel
