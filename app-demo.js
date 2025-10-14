@@ -1,4 +1,4 @@
-// Laura Boekhoudsysteem - GitHub Pages Frontend JavaScript
+// Laura Boekhoudsysteem - DEMO VERSIE voor klant presentaties
 class LauraBoekhouding {
     constructor() {
         this.currentPage = 'dashboard';
@@ -59,19 +59,28 @@ class LauraBoekhouding {
     }
 
     loadDemoData() {
-        // Demo data for GitHub Pages
+        // Realistische demo data voor klant presentaties
         this.data = {
             klanten: [
-                { id: 1, voornaam: 'Jan', achternaam: 'Janssen', email: 'jan@example.com', telefoon: '0123456789', startdatum: '2024-01-15', mutualiteit_naam: 'CM' },
-                { id: 2, voornaam: 'Maria', achternaam: 'Vermeulen', email: 'maria@example.com', telefoon: '0987654321', startdatum: '2024-02-01', mutualiteit_naam: 'Partena' }
+                { id: 1, voornaam: 'Sarah', achternaam: 'Vandeputte', email: 'sarah.vandeputte@email.com', telefoon: '0478 12 34 56', startdatum: '2024-01-15', mutualiteit_naam: 'CM' },
+                { id: 2, voornaam: 'Tom', achternaam: 'De Smet', email: 'tom.desmet@email.com', telefoon: '0489 87 65 43', startdatum: '2024-02-01', mutualiteit_naam: 'Partena' },
+                { id: 3, voornaam: 'Lisa', achternaam: 'Peeters', email: 'lisa.peeters@email.com', telefoon: '0475 55 44 33', startdatum: '2024-02-15', mutualiteit_naam: 'CM' },
+                { id: 4, voornaam: 'Mark', achternaam: 'Janssens', email: 'mark.janssens@email.com', telefoon: '0488 99 88 77', startdatum: '2024-03-01', mutualiteit_naam: 'OZ' }
             ],
             afspraken: [
-                { id: 1, datum: '2024-01-20', voornaam: 'Jan', achternaam: 'Janssen', type: 'Eerste consult', aantal: 1, prijs: 50, totaal: 50, terugbetaalbaar: true, pdf_bestand: null },
-                { id: 2, datum: '2024-01-25', voornaam: 'Maria', achternaam: 'Vermeulen', type: 'Follow-up', aantal: 1, prijs: 40, totaal: 40, terugbetaalbaar: true, pdf_bestand: null }
+                { id: 1, datum: '2024-01-20', voornaam: 'Sarah', achternaam: 'Vandeputte', type: 'Eerste consult', aantal: 1, prijs: 50, totaal: 50, terugbetaalbaar: true, pdf_bestand: 'consult-sarah-2024-01-20.pdf' },
+                { id: 2, datum: '2024-01-25', voornaam: 'Tom', achternaam: 'De Smet', type: 'Follow-up', aantal: 1, prijs: 40, totaal: 40, terugbetaalbaar: true, pdf_bestand: 'consult-tom-2024-01-25.pdf' },
+                { id: 3, datum: '2024-02-05', voornaam: 'Lisa', achternaam: 'Peeters', type: 'Eerste consult', aantal: 1, prijs: 50, totaal: 50, terugbetaalbaar: true, pdf_bestand: null },
+                { id: 4, datum: '2024-02-10', voornaam: 'Sarah', achternaam: 'Vandeputte', type: 'Follow-up', aantal: 1, prijs: 40, totaal: 40, terugbetaalbaar: true, pdf_bestand: 'consult-sarah-2024-02-10.pdf' },
+                { id: 5, datum: '2024-02-15', voornaam: 'Mark', achternaam: 'Janssens', type: 'Eerste consult', aantal: 1, prijs: 50, totaal: 50, terugbetaalbaar: true, pdf_bestand: null },
+                { id: 6, datum: '2024-02-20', voornaam: 'Tom', achternaam: 'De Smet', type: 'Teleconsultatie', aantal: 1, prijs: 30, totaal: 30, terugbetaalbaar: false, pdf_bestand: null }
             ],
             uitgaven: [
                 { id: 1, datum: '2024-01-15', beschrijving: 'Kantoorbenodigdheden', categorie: 'Algemeen', bedrag: 25.50, betaalmethode: 'Kaart' },
-                { id: 2, datum: '2024-01-20', beschrijving: 'Software licentie', categorie: 'IT', bedrag: 99.00, betaalmethode: 'Overschrijving' }
+                { id: 2, datum: '2024-01-20', beschrijving: 'Software licentie', categorie: 'IT', bedrag: 99.00, betaalmethode: 'Overschrijving' },
+                { id: 3, datum: '2024-02-01', beschrijving: 'Internet abonnement', categorie: 'IT', bedrag: 45.00, betaalmethode: 'Overschrijving' },
+                { id: 4, datum: '2024-02-10', beschrijving: 'Koffie en thee', categorie: 'Algemeen', bedrag: 12.75, betaalmethode: 'Kaart' },
+                { id: 5, datum: '2024-02-15', beschrijving: 'Printer papier', categorie: 'Kantoor', bedrag: 18.90, betaalmethode: 'Kaart' }
             ],
             consulttypes: [
                 { id: 1, type: 'Eerste consult', prijs: 50 },
@@ -87,10 +96,10 @@ class LauraBoekhouding {
                 { id: 2, categorie: 'IT' },
                 { id: 3, categorie: 'Kantoor' }
             ],
-            dashboard: { inkomsten: 90, uitgaven: 124.50, netto: -34.50 },
+            dashboard: { inkomsten: 260, uitgaven: 201.15, netto: 58.85 },
             maandoverzicht: [
                 { maand: 'Jan', inkomsten: 90, uitgaven: 124.50 },
-                { maand: 'Feb', inkomsten: 0, uitgaven: 0 },
+                { maand: 'Feb', inkomsten: 170, uitgaven: 76.65 },
                 { maand: 'Mrt', inkomsten: 0, uitgaven: 0 },
                 { maand: 'Apr', inkomsten: 0, uitgaven: 0 },
                 { maand: 'Mei', inkomsten: 0, uitgaven: 0 },
