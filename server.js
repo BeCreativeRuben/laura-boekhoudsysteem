@@ -245,13 +245,25 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-app.post('/api/verify-token', authenticateToken, (req, res) => {
-    res.json({
-        valid: true,
-        user: {
-            id: req.user.id,
-            username: req.user.username
+app.post('/api/verify-token', (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Invalid or expired token' });
         }
+        res.json({
+            valid: true,
+            user: {
+                id: user.id,
+                username: user.username
+            }
+        });
     });
 });
 
@@ -401,7 +413,7 @@ app.put('/api/klanten/:id', (req, res) => {
 });
 
 // Afspraken
-app.get('/api/afspraken', (req, res) => {
+app.get('/api/afspraken', authenticateToken, (req, res) => {
     db.all(`SELECT a.*, k.voornaam, k.achternaam, c.type, c.prijs as type_prijs
             FROM afspraken a
             JOIN klanten k ON a.klant_id = k.id
@@ -443,7 +455,7 @@ app.post('/api/afspraken', upload.single('pdf'), (req, res) => {
 });
 
 // Uitgaven
-app.get('/api/uitgaven', (req, res) => {
+app.get('/api/uitgaven', authenticateToken, (req, res) => {
     db.all(`SELECT u.*, c.categorie
             FROM uitgaven u
             LEFT JOIN categorieen c ON u.categorie_id = c.id
@@ -472,7 +484,7 @@ app.post('/api/uitgaven', (req, res) => {
 });
 
 // Dashboard data
-app.get('/api/dashboard', (req, res) => {
+app.get('/api/dashboard', authenticateToken, (req, res) => {
     const currentMonth = new Date();
     currentMonth.setDate(1);
     const currentMonthStr = currentMonth.toISOString().split('T')[0];
@@ -505,7 +517,7 @@ app.get('/api/dashboard', (req, res) => {
 });
 
 // Monthly overview
-app.get('/api/maandoverzicht', (req, res) => {
+app.get('/api/maandoverzicht', authenticateToken, (req, res) => {
     const year = new Date().getFullYear();
     
     db.all(`SELECT 
@@ -546,7 +558,7 @@ app.get('/api/maandoverzicht', (req, res) => {
 });
 
 // Terugbetaling signals
-app.get('/api/terugbetaling-signalen', (req, res) => {
+app.get('/api/terugbetaling-signalen', authenticateToken, (req, res) => {
     const currentYear = new Date().getFullYear();
     const yearStart = `${currentYear}-01-01`;
     const yearEnd = `${currentYear + 1}-01-01`;
