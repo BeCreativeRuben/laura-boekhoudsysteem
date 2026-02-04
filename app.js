@@ -886,28 +886,32 @@ class LauraBoekhouding {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
     }
 
     async createAfspraak(formData) {
-        const token = localStorage.getItem('token');
         const response = await fetch('/api/afspraken', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: formData
         });
-        
         if (!response.ok) {
-            if (response.status === 401) {
-                localStorage.removeItem('token');
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
                 window.location.href = '/login';
                 return;
             }
@@ -921,10 +925,16 @@ class LauraBoekhouding {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
@@ -939,10 +949,16 @@ class LauraBoekhouding {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
@@ -958,10 +974,16 @@ class LauraBoekhouding {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
@@ -976,10 +998,16 @@ class LauraBoekhouding {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
@@ -994,10 +1022,16 @@ class LauraBoekhouding {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.authToken}`
             },
             body: JSON.stringify(data)
         });
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
@@ -1052,101 +1086,68 @@ class LauraBoekhouding {
         window.location.href = '/login';
     }
 
-    downloadPDF(filename) {
-        const link = document.createElement('a');
-        link.href = `/uploads/${filename}`;
-        link.download = filename;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    async downloadPDF(afspraakId) {
+        try {
+            const response = await fetch(`/api/afspraken/${afspraakId}/pdf`, {
+                headers: { 'Authorization': `Bearer ${this.authToken}` }
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                this.showMessage(err.error || 'PDF niet gevonden', 'error');
+                return;
+            }
+            const { url } = await response.json();
+            if (url) window.open(url, '_blank');
+        } catch (e) {
+            this.showMessage('Download mislukt', 'error');
+        }
     }
 
-    // Excel Export Functions
-    exportAllToExcel() {
-        const workbook = XLSX.utils.book_new();
-        
-        // Add all sheets
+    // Excel Export Functions (ExcelJS)
+    async downloadExcelWorkbook(workbook, filename) {
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    async exportAllToExcel() {
+        const workbook = new ExcelJS.Workbook();
         this.addKlantenSheet(workbook);
         this.addAfsprakenSheet(workbook);
         this.addUitgavenSheet(workbook);
         this.addDashboardSheet(workbook);
         this.addInstellingenSheet(workbook);
-        
-        // Generate filename with current date
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const filename = `Dietist_Laura_${dateStr}.xlsx`;
-        
-        // Download file
-        XLSX.writeFile(workbook, filename);
+        const dateStr = new Date().toISOString().split('T')[0];
+        await this.downloadExcelWorkbook(workbook, `Dietist_Laura_${dateStr}.xlsx`);
         this.showMessage('Alle gegevens geëxporteerd naar Excel!', 'success');
     }
 
-    exportKlantenToExcel() {
-        const worksheet = XLSX.utils.json_to_sheet(this.data.klanten.map(klant => ({
-            'ID': klant.id,
-            'Voornaam': klant.voornaam,
-            'Achternaam': klant.achternaam,
-            'Email': klant.email || '',
-            'Telefoon': klant.telefoon || '',
-            'Startdatum': klant.startdatum ? new Date(klant.startdatum).toLocaleDateString('nl-NL') : '',
-            'Mutualiteit': klant.mutualiteit_naam || ''
-        })));
-        
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Klanten');
-        
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const filename = `Klanten_${dateStr}.xlsx`;
-        
-        XLSX.writeFile(workbook, filename);
+    async exportKlantenToExcel() {
+        const workbook = new ExcelJS.Workbook();
+        this.addKlantenSheet(workbook);
+        const dateStr = new Date().toISOString().split('T')[0];
+        await this.downloadExcelWorkbook(workbook, `Klanten_${dateStr}.xlsx`);
         this.showMessage('Klanten geëxporteerd naar Excel!', 'success');
     }
 
-    exportAfsprakenToExcel() {
-        const worksheet = XLSX.utils.json_to_sheet(this.data.afspraken.map(afspraak => ({
-            'Datum': new Date(afspraak.datum).toLocaleDateString('nl-NL'),
-            'Klant': `${afspraak.voornaam} ${afspraak.achternaam}`,
-            'Type': afspraak.type,
-            'Aantal': afspraak.aantal,
-            'Prijs': afspraak.prijs ? `€${afspraak.prijs.toFixed(2)}` : '€0.00',
-            'Totaal': afspraak.totaal ? `€${afspraak.totaal.toFixed(2)}` : '€0.00',
-            'Terugbetaalbaar': afspraak.terugbetaalbaar ? 'Ja' : 'Nee',
-            'Opmerking': afspraak.opmerking || '',
-            'PDF': afspraak.pdf_bestand || ''
-        })));
-        
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Afspraken');
-        
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const filename = `Afspraken_${dateStr}.xlsx`;
-        
-        XLSX.writeFile(workbook, filename);
+    async exportAfsprakenToExcel() {
+        const workbook = new ExcelJS.Workbook();
+        this.addAfsprakenSheet(workbook);
+        const dateStr = new Date().toISOString().split('T')[0];
+        await this.downloadExcelWorkbook(workbook, `Afspraken_${dateStr}.xlsx`);
         this.showMessage('Afspraken geëxporteerd naar Excel!', 'success');
     }
 
-    exportUitgavenToExcel() {
-        const worksheet = XLSX.utils.json_to_sheet(this.data.uitgaven.map(uitgave => ({
-            'Datum': new Date(uitgave.datum).toLocaleDateString('nl-NL'),
-            'Beschrijving': uitgave.beschrijving,
-            'Categorie': uitgave.categorie_naam || '',
-            'Bedrag': `€${uitgave.bedrag.toFixed(2)}`,
-            'Betaalmethode': uitgave.betaalmethode || '',
-            'Opmerking': uitgave.opmerking || ''
-        })));
-        
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Uitgaven');
-        
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const filename = `Uitgaven_${dateStr}.xlsx`;
-        
-        XLSX.writeFile(workbook, filename);
+    async exportUitgavenToExcel() {
+        const workbook = new ExcelJS.Workbook();
+        this.addUitgavenSheet(workbook);
+        const dateStr = new Date().toISOString().split('T')[0];
+        await this.downloadExcelWorkbook(workbook, `Uitgaven_${dateStr}.xlsx`);
         this.showMessage('Uitgaven geëxporteerd naar Excel!', 'success');
     }
 
@@ -1155,7 +1156,7 @@ class LauraBoekhouding {
         this.showMessage('Grafiek ververst!', 'success');
     }
 
-    // Helper functions for complete Excel export
+    // Helper functions for complete Excel export (ExcelJS)
     addKlantenSheet(workbook) {
         const data = this.data.klanten.map(klant => ({
             'ID': klant.id,
@@ -1166,95 +1167,88 @@ class LauraBoekhouding {
             'Startdatum': klant.startdatum ? new Date(klant.startdatum).toLocaleDateString('nl-NL') : '',
             'Mutualiteit': klant.mutualiteit_naam || ''
         }));
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Klanten');
+        const sheet = workbook.addWorksheet('Klanten');
+        if (data.length) {
+            sheet.columns = Object.keys(data[0]).map(k => ({ header: k, key: k, width: 14 }));
+            sheet.addRows(data);
+        }
     }
 
     addAfsprakenSheet(workbook) {
         const data = this.data.afspraken.map(afspraak => ({
             'Datum': new Date(afspraak.datum).toLocaleDateString('nl-NL'),
-            'Klant': `${afspraak.voornaam} ${afspraak.achternaam}`,
+            'Klant': `${afspraak.voornaam || ''} ${afspraak.achternaam || ''}`.trim(),
             'Type': afspraak.type,
             'Aantal': afspraak.aantal,
-            'Prijs': afspraak.prijs || 0,
-            'Totaal': afspraak.totaal || 0,
+            'Prijs': afspraak.prijs != null ? `€${Number(afspraak.prijs).toFixed(2)}` : '€0.00',
+            'Totaal': afspraak.totaal != null ? `€${Number(afspraak.totaal).toFixed(2)}` : '€0.00',
             'Terugbetaalbaar': afspraak.terugbetaalbaar ? 'Ja' : 'Nee',
             'Opmerking': afspraak.opmerking || '',
             'PDF': afspraak.pdf_bestand || ''
         }));
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Afspraken');
+        const sheet = workbook.addWorksheet('Afspraken');
+        if (data.length) {
+            sheet.columns = Object.keys(data[0]).map(k => ({ header: k, key: k, width: 14 }));
+            sheet.addRows(data);
+        }
     }
 
     addUitgavenSheet(workbook) {
         const data = this.data.uitgaven.map(uitgave => ({
             'Datum': new Date(uitgave.datum).toLocaleDateString('nl-NL'),
             'Beschrijving': uitgave.beschrijving,
-            'Categorie': uitgave.categorie_naam || '',
-            'Bedrag': uitgave.bedrag || 0,
-            'Betaalmethode': uitgave.betaalmethode || '',
-            'Opmerking': uitgave.opmerking || ''
+            'Categorie': uitgave.categorie || '',
+            'Bedrag': uitgave.bedrag != null ? `€${Number(uitgave.bedrag).toFixed(2)}` : '€0.00',
+            'Betaalmethode': uitgave.betaalmethode || ''
         }));
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Uitgaven');
+        const sheet = workbook.addWorksheet('Uitgaven');
+        if (data.length) {
+            sheet.columns = Object.keys(data[0]).map(k => ({ header: k, key: k, width: 14 }));
+            sheet.addRows(data);
+        }
     }
 
     addDashboardSheet(workbook) {
-        const data = [
-            ['Dashboard Overzicht'],
-            [''],
-            ['Totaal Inkomsten', this.data.dashboard.inkomsten || 0],
-            ['Totaal Uitgaven', this.data.dashboard.uitgaven || 0],
-            ['Netto Resultaat', this.data.dashboard.netto || 0],
-            [''],
-            ['Maandoverzicht'],
-            ['Maand', 'Inkomsten', 'Uitgaven', 'Netto']
-        ];
-        
-        // Add monthly data
-        this.data.maandoverzicht.forEach(maand => {
-            data.push([
+        const sheet = workbook.addWorksheet('Dashboard');
+        sheet.addRow(['Dashboard Overzicht']);
+        sheet.addRow([]);
+        sheet.addRow(['Totaal Inkomsten', this.data.dashboard?.inkomsten ?? 0]);
+        sheet.addRow(['Totaal Uitgaven', this.data.dashboard?.uitgaven ?? 0]);
+        sheet.addRow(['Netto Resultaat', this.data.dashboard?.netto ?? 0]);
+        sheet.addRow([]);
+        sheet.addRow(['Maandoverzicht']);
+        sheet.addRow(['Maand', 'Inkomsten', 'Uitgaven', 'Netto']);
+        (this.data.maandoverzicht || []).forEach(maand => {
+            sheet.addRow([
                 maand.maand,
-                maand.inkomsten || 0,
-                maand.uitgaven || 0,
-                (maand.inkomsten || 0) - (maand.uitgaven || 0)
+                maand.inkomsten ?? 0,
+                maand.uitgaven ?? 0,
+                (maand.inkomsten ?? 0) - (maand.uitgaven ?? 0)
             ]);
         });
-        
-        const worksheet = XLSX.utils.aoa_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Dashboard');
     }
 
     addInstellingenSheet(workbook) {
-        const data = [
-            ['Instellingen'],
-            [''],
-            ['Consultatietypes'],
-            ['Type', 'Prijs']
-        ];
-        
-        this.data.consulttypes.forEach(type => {
-            data.push([type.type, type.prijs || 0]);
+        const sheet = workbook.addWorksheet('Instellingen');
+        sheet.addRow(['Instellingen']);
+        sheet.addRow([]);
+        sheet.addRow(['Consultatietypes']);
+        sheet.addRow(['Type', 'Prijs']);
+        (this.data.consulttypes || []).forEach(type => {
+            sheet.addRow([type.type, type.prijs ?? 0]);
         });
-        
-        data.push(['', '']);
-        data.push(['Mutualiteiten']);
-        data.push(['Naam', 'Max Sessies/Jaar', 'Opmerking']);
-        
-        this.data.mutualiteiten.forEach(mut => {
-            data.push([mut.naam, mut.maxSessiesPerJaar || '', mut.opmerking || '']);
+        sheet.addRow([]);
+        sheet.addRow(['Mutualiteiten']);
+        sheet.addRow(['Naam', 'Max Sessies/Jaar', 'Opmerking']);
+        (this.data.mutualiteiten || []).forEach(mut => {
+            sheet.addRow([mut.naam, mut.maxSessiesPerJaar ?? '', mut.opmerking ?? '']);
         });
-        
-        data.push(['', '']);
-        data.push(['Categorieën']);
-        data.push(['Categorie']);
-        
-        this.data.categorieen.forEach(cat => {
-            data.push([cat.categorie]);
+        sheet.addRow([]);
+        sheet.addRow(['Categorieën']);
+        sheet.addRow(['Categorie']);
+        (this.data.categorieen || []).forEach(cat => {
+            sheet.addRow([cat.categorie]);
         });
-        
-        const worksheet = XLSX.utils.aoa_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Instellingen');
     }
 
     showMessage(message, type = 'success') {

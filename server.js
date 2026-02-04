@@ -1,16 +1,23 @@
+require('dotenv').config();
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'laura_boekhouding_secret_key_2024_secure';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for production. Using SQLite fallback is no longer supported.');
+}
+const supabase = supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : null;
 
 // Middleware
 app.use(cors());
@@ -19,603 +26,583 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('.'));
 app.use('/uploads', express.static('uploads'));
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory if it doesn't exist (local dev only)
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadsDir);
-    },
-    filename: (req, file, cb) => {
-        // Generate unique filename with timestamp
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'afspraak-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
+// Multer: memory storage for serverless (file will be uploaded to Supabase Storage by route)
 const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit
-    },
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        // Only allow PDF files
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        } else {
-            cb(new Error('Alleen PDF bestanden zijn toegestaan'), false);
-        }
+        if (file.mimetype === 'application/pdf') cb(null, true);
+        else cb(new Error('Alleen PDF bestanden zijn toegestaan'), false);
     }
 });
 
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+// Resolve tenant from Supabase Auth user id; create tenant + seed if first login
+async function resolveTenant(authUserId, displayName = null) {
+    const { data: existing } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+    if (existing) return existing.id;
 
-    if (!token) {
-        return res.status(401).json({ error: 'Access token required' });
-    }
+    const { data: inserted, error } = await supabase
+        .from('tenants')
+        .insert({ auth_user_id: authUserId, display_name: displayName || authUserId })
+        .select('id')
+        .single();
+    if (error) throw error;
+    await seedTenantDefaults(inserted.id);
+    return inserted.id;
+}
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: 'Invalid or expired token' });
-        }
-        req.user = user;
-        next();
-    });
-};
-
-// Database setup - use persistent file for local installation
-const db = new sqlite3.Database('laura_boekhouding.db');
-
-// Initialize database tables
-db.serialize(() => {
-    // Users table
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-    // Consulttypes table
-    db.run(`CREATE TABLE IF NOT EXISTS consulttypes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type TEXT NOT NULL UNIQUE,
-        prijs DECIMAL(10,2)
-    )`);
-
-    // Mutualiteiten table
-    db.run(`CREATE TABLE IF NOT EXISTS mutualiteiten (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        naam TEXT NOT NULL UNIQUE,
-        maxSessiesPerJaar INTEGER,
-        opmerking TEXT
-    )`);
-
-    // Categorieën table
-    db.run(`CREATE TABLE IF NOT EXISTS categorieen (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        categorie TEXT NOT NULL UNIQUE
-    )`);
-
-    // Klanten table
-    db.run(`CREATE TABLE IF NOT EXISTS klanten (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        voornaam TEXT NOT NULL,
-        achternaam TEXT NOT NULL,
-        email TEXT,
-        telefoon TEXT,
-        startdatum DATE,
-        mutualiteit_id INTEGER,
-        FOREIGN KEY (mutualiteit_id) REFERENCES mutualiteiten (id)
-    )`);
-
-    // Afspraken table
-    db.run(`CREATE TABLE IF NOT EXISTS afspraken (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        datum DATE NOT NULL,
-        klant_id INTEGER NOT NULL,
-        type_id INTEGER NOT NULL,
-        aantal INTEGER DEFAULT 1,
-        prijs DECIMAL(10,2),
-        totaal DECIMAL(10,2),
-        terugbetaalbaar BOOLEAN DEFAULT 0,
-        opmerking TEXT,
-        maand DATE,
-        pdf_bestand TEXT,
-        FOREIGN KEY (klant_id) REFERENCES klanten (id),
-        FOREIGN KEY (type_id) REFERENCES consulttypes (id)
-    )`);
-
-    // Uitgaven table
-    db.run(`CREATE TABLE IF NOT EXISTS uitgaven (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        datum DATE NOT NULL,
-        beschrijving TEXT NOT NULL,
-        categorie_id INTEGER,
-        bedrag DECIMAL(10,2) NOT NULL,
-        betaalmethode TEXT,
-        maand DATE,
-        FOREIGN KEY (categorie_id) REFERENCES categorieen (id)
-    )`);
-
-    // Insert initial data
-    // Create default user
-    const defaultPassword = 'v7$Kq9#TzP!4rWx2bLmN8sQ';
-    const hashedPassword = bcrypt.hashSync(defaultPassword, 10);
-    
-    const userStmt = db.prepare("INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)");
-    userStmt.run('Laura', hashedPassword);
-    userStmt.finalize();
-
+// Seed default consulttypes, mutualiteiten, categorieen for a new tenant
+async function seedTenantDefaults(tenantId) {
     const consulttypes = [
-        ['Intake gesprek', 60],
-        ['Lange opvolg (consultatie)', 35],
-        ['Korte opvolg (consultatie)', 30],
-        ['Nabespreking', 25],
-        ['Groepssessie (workshop)', null]
+        { tenant_id: tenantId, type: 'Intake gesprek', prijs: 60 },
+        { tenant_id: tenantId, type: 'Lange opvolg (consultatie)', prijs: 35 },
+        { tenant_id: tenantId, type: 'Korte opvolg (consultatie)', prijs: 30 },
+        { tenant_id: tenantId, type: 'Nabespreking', prijs: 25 },
+        { tenant_id: tenantId, type: 'Groepssessie (workshop)', prijs: null }
     ];
-
     const mutualiteiten = [
-        ['CM', null, null],
-        ['Helan', null, null],
-        ['Solidaris', null, null],
-        ['LM', null, null],
-        ['Partena', null, null],
-        ['OZ', null, null],
-        ['De Voorzorg', null, null],
-        ['IDEWE', null, null]
+        { tenant_id: tenantId, naam: 'CM', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'Helan', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'Solidaris', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'LM', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'Partena', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'OZ', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'De Voorzorg', max_sessies_per_jaar: null, opmerking: null },
+        { tenant_id: tenantId, naam: 'IDEWE', max_sessies_per_jaar: null, opmerking: null }
     ];
-
     const categorieen = [
-        ['Huur'],
-        ['Materiaal'],
-        ['Verplaatsing'],
-        ['Software'],
-        ['Opleiding'],
-        ['Marketing'],
-        ['Overig']
+        { tenant_id: tenantId, categorie: 'Huur' },
+        { tenant_id: tenantId, categorie: 'Materiaal' },
+        { tenant_id: tenantId, categorie: 'Verplaatsing' },
+        { tenant_id: tenantId, categorie: 'Software' },
+        { tenant_id: tenantId, categorie: 'Opleiding' },
+        { tenant_id: tenantId, categorie: 'Marketing' },
+        { tenant_id: tenantId, categorie: 'Overig' }
     ];
+    await supabase.from('consulttypes').insert(consulttypes);
+    await supabase.from('mutualiteiten').insert(mutualiteiten);
+    await supabase.from('categorieen').insert(categorieen);
+}
 
-    // Insert consulttypes
-    const stmt1 = db.prepare("INSERT OR IGNORE INTO consulttypes (type, prijs) VALUES (?, ?)");
-    consulttypes.forEach(([type, prijs]) => {
-        stmt1.run(type, prijs);
-    });
-    stmt1.finalize();
+// Map DB row to API shape (snake_case -> camelCase for mutualiteiten)
+function mapMutualiteit(row) {
+    if (!row) return row;
+    return { ...row, maxSessiesPerJaar: row.max_sessies_per_jaar };
+}
 
-    // Insert mutualiteiten
-    const stmt2 = db.prepare("INSERT OR IGNORE INTO mutualiteiten (naam, maxSessiesPerJaar, opmerking) VALUES (?, ?, ?)");
-    mutualiteiten.forEach(([naam, maxSessies, opmerking]) => {
-        stmt2.run(naam, maxSessies, opmerking);
-    });
-    stmt2.finalize();
-
-    // Insert categorieen
-    const stmt3 = db.prepare("INSERT OR IGNORE INTO categorieen (categorie) VALUES (?)");
-    categorieen.forEach(([categorie]) => {
-        stmt3.run(categorie);
-    });
-    stmt3.finalize();
-});
-
-// API Routes
-
-// Authentication
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required' });
+// Auth middleware: verify Supabase JWT, resolve tenant
+async function authenticateToken(req, res, next) {
+    if (!supabase) {
+        return res.status(503).json({ error: 'Database not configured' });
     }
-
-    db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
-
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const isValidPassword = bcrypt.compareSync(password, user.password_hash);
-        if (!isValidPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const token = jwt.sign(
-            { id: user.id, username: user.username },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-        );
-
-        res.json({
-            token,
-            user: {
-                id: user.id,
-                username: user.username
-            }
-        });
-    });
-});
-
-app.post('/api/verify-token', (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
     if (!token) {
         return res.status(401).json({ error: 'Access token required' });
     }
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+        return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.authUser = user;
+    try {
+        req.tenantId = await resolveTenant(user.id, user.email || user.id);
+        next();
+    } catch (err) {
+        return res.status(500).json({ error: 'Failed to resolve tenant' });
+    }
+}
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: 'Invalid or expired token' });
-        }
-        res.json({
-            valid: true,
-            user: {
-                id: user.id,
-                username: user.username
-            }
-        });
+// Public config for frontend (Supabase URL and anon key for auth)
+app.get('/api/config', (req, res) => {
+    res.json({
+        supabaseUrl: process.env.SUPABASE_URL || '',
+        supabaseAnonKey: process.env.SUPABASE_ANON_KEY || ''
     });
 });
 
-// Consulttypes
-app.get('/api/consulttypes', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM consulttypes ORDER BY type", (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
+// --- API: Auth (Supabase handles login; this endpoint for compatibility / session check)
+app.post('/api/login', (req, res) => {
+    res.status(400).json({
+        error: 'Use Supabase Auth: sign in via the login page (Supabase client). This endpoint is deprecated.'
     });
 });
 
-app.post('/api/consulttypes', authenticateToken, (req, res) => {
+app.post('/api/verify-token', authenticateToken, (req, res) => {
+    res.json({
+        valid: true,
+        user: {
+            id: req.authUser.id,
+            username: req.authUser.email || req.authUser.id
+        }
+    });
+});
+
+// --- Consulttypes
+app.get('/api/consulttypes', authenticateToken, async (req, res) => {
+    const { data, error } = await supabase
+        .from('consulttypes')
+        .select('*')
+        .eq('tenant_id', req.tenantId)
+        .order('type');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+app.post('/api/consulttypes', authenticateToken, async (req, res) => {
     const { type, prijs } = req.body;
-    db.run("INSERT INTO consulttypes (type, prijs) VALUES (?, ?)", [type, prijs], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ id: this.lastID, type, prijs });
-    });
+    const { data, error } = await supabase
+        .from('consulttypes')
+        .insert({ tenant_id: req.tenantId, type, prijs: prijs != null ? Number(prijs) : null })
+        .select('id, type, prijs')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
-app.put('/api/consulttypes/:id', authenticateToken, (req, res) => {
+app.put('/api/consulttypes/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { type, prijs } = req.body;
-    db.run("UPDATE consulttypes SET type = ?, prijs = ? WHERE id = ?", 
-           [type, prijs, id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ message: 'Consulttype updated successfully' });
-    });
+    const { error } = await supabase
+        .from('consulttypes')
+        .update({ type, prijs: prijs != null ? Number(prijs) : null })
+        .eq('id', id)
+        .eq('tenant_id', req.tenantId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Consulttype updated successfully' });
 });
 
-// Mutualiteiten
-app.get('/api/mutualiteiten', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM mutualiteiten ORDER BY naam", (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+// --- Mutualiteiten
+app.get('/api/mutualiteiten', authenticateToken, async (req, res) => {
+    const { data, error } = await supabase
+        .from('mutualiteiten')
+        .select('*')
+        .eq('tenant_id', req.tenantId)
+        .order('naam');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json((data || []).map(mapMutualiteit));
 });
 
-app.post('/api/mutualiteiten', authenticateToken, (req, res) => {
+app.post('/api/mutualiteiten', authenticateToken, async (req, res) => {
     const { naam, maxSessiesPerJaar, opmerking } = req.body;
-    db.run("INSERT INTO mutualiteiten (naam, maxSessiesPerJaar, opmerking) VALUES (?, ?, ?)", 
-           [naam, maxSessiesPerJaar, opmerking], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ id: this.lastID, naam, maxSessiesPerJaar, opmerking });
-    });
+    const { data, error } = await supabase
+        .from('mutualiteiten')
+        .insert({
+            tenant_id: req.tenantId,
+            naam,
+            max_sessies_per_jaar: maxSessiesPerJaar != null ? Number(maxSessiesPerJaar) : null,
+            opmerking: opmerking || null
+        })
+        .select('id, naam, max_sessies_per_jaar, opmerking')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ id: data.id, naam: data.naam, maxSessiesPerJaar: data.max_sessies_per_jaar, opmerking: data.opmerking });
 });
 
-app.put('/api/mutualiteiten/:id', authenticateToken, (req, res) => {
+app.put('/api/mutualiteiten/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { naam, maxSessiesPerJaar, opmerking } = req.body;
-    db.run("UPDATE mutualiteiten SET naam = ?, maxSessiesPerJaar = ?, opmerking = ? WHERE id = ?", 
-           [naam, maxSessiesPerJaar, opmerking, id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ message: 'Mutualiteit updated successfully' });
-    });
+    const { error } = await supabase
+        .from('mutualiteiten')
+        .update({
+            naam,
+            max_sessies_per_jaar: maxSessiesPerJaar != null ? Number(maxSessiesPerJaar) : null,
+            opmerking: opmerking || null
+        })
+        .eq('id', id)
+        .eq('tenant_id', req.tenantId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Mutualiteit updated successfully' });
 });
 
-// Categorieën
-app.get('/api/categorieen', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM categorieen ORDER BY categorie", (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+// --- Categorieën
+app.get('/api/categorieen', authenticateToken, async (req, res) => {
+    const { data, error } = await supabase
+        .from('categorieen')
+        .select('*')
+        .eq('tenant_id', req.tenantId)
+        .order('categorie');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
-app.post('/api/categorieen', authenticateToken, (req, res) => {
+app.post('/api/categorieen', authenticateToken, async (req, res) => {
     const { categorie } = req.body;
-    db.run("INSERT INTO categorieen (categorie) VALUES (?)", [categorie], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ id: this.lastID, categorie });
-    });
+    const { data, error } = await supabase
+        .from('categorieen')
+        .insert({ tenant_id: req.tenantId, categorie })
+        .select('id, categorie')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
-app.put('/api/categorieen/:id', authenticateToken, (req, res) => {
+app.put('/api/categorieen/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { categorie } = req.body;
-    db.run("UPDATE categorieen SET categorie = ? WHERE id = ?", 
-           [categorie, id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ message: 'Categorie updated successfully' });
-    });
+    const { error } = await supabase
+        .from('categorieen')
+        .update({ categorie })
+        .eq('id', id)
+        .eq('tenant_id', req.tenantId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Categorie updated successfully' });
 });
 
-// Klanten
-app.get('/api/klanten', authenticateToken, (req, res) => {
-    db.all(`SELECT k.*, m.naam as mutualiteit_naam 
-            FROM klanten k 
-            LEFT JOIN mutualiteiten m ON k.mutualiteit_id = m.id 
-            ORDER BY k.achternaam, k.voornaam`, (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+// --- Klanten
+app.get('/api/klanten', authenticateToken, async (req, res) => {
+    const { data: klanten, error } = await supabase
+        .from('klanten')
+        .select('id, voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id')
+        .eq('tenant_id', req.tenantId)
+        .order('achternaam')
+        .order('voornaam');
+    if (error) return res.status(500).json({ error: error.message });
+    const ids = (klanten || []).map(k => k.mutualiteit_id).filter(Boolean);
+    const mutualiteitIds = [...new Set(ids)];
+    let names = {};
+    if (mutualiteitIds.length) {
+        const { data: mut } = await supabase.from('mutualiteiten').select('id, naam').in('id', mutualiteitIds);
+        (mut || []).forEach(m => { names[m.id] = m.naam; });
+    }
+    const result = (klanten || []).map(k => ({
+        ...k,
+        mutualiteit_naam: k.mutualiteit_id ? names[k.mutualiteit_id] : null
+    }));
+    res.json(result);
 });
 
-app.post('/api/klanten', authenticateToken, (req, res) => {
+app.post('/api/klanten', authenticateToken, async (req, res) => {
     const { voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id } = req.body;
-    db.run("INSERT INTO klanten (voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id) VALUES (?, ?, ?, ?, ?, ?)", 
-           [voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ id: this.lastID, voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id });
-    });
+    const { data, error } = await supabase
+        .from('klanten')
+        .insert({
+            tenant_id: req.tenantId,
+            voornaam,
+            achternaam,
+            email: email || null,
+            telefoon: telefoon || null,
+            startdatum: startdatum || null,
+            mutualiteit_id: mutualiteit_id ? Number(mutualiteit_id) : null
+        })
+        .select('id, voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
-app.put('/api/klanten/:id', (req, res) => {
+app.put('/api/klanten/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id } = req.body;
-    db.run("UPDATE klanten SET voornaam = ?, achternaam = ?, email = ?, telefoon = ?, startdatum = ?, mutualiteit_id = ? WHERE id = ?", 
-           [voornaam, achternaam, email, telefoon, startdatum, mutualiteit_id, id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ message: 'Klant updated successfully' });
-    });
+    const { error } = await supabase
+        .from('klanten')
+        .update({
+            voornaam,
+            achternaam,
+            email: email || null,
+            telefoon: telefoon || null,
+            startdatum: startdatum || null,
+            mutualiteit_id: mutualiteit_id ? Number(mutualiteit_id) : null
+        })
+        .eq('id', id)
+        .eq('tenant_id', req.tenantId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Klant updated successfully' });
 });
 
-// Afspraken
-app.get('/api/afspraken', authenticateToken, (req, res) => {
-    db.all(`SELECT a.*, k.voornaam, k.achternaam, c.type, c.prijs as type_prijs
-            FROM afspraken a
-            JOIN klanten k ON a.klant_id = k.id
-            JOIN consulttypes c ON a.type_id = c.id
-            ORDER BY a.datum DESC`, (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+// --- Afspraken (PDF: stored in Supabase Storage in step 4; for now store key or null)
+app.get('/api/afspraken', authenticateToken, async (req, res) => {
+    const { data: afspraken, error } = await supabase
+        .from('afspraken')
+        .select(`
+            *,
+            klanten (voornaam, achternaam),
+            consulttypes (type, prijs)
+        `)
+        .eq('tenant_id', req.tenantId)
+        .order('datum', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    const rows = (afspraken || []).map(a => ({
+        ...a,
+        voornaam: a.klanten?.voornaam,
+        achternaam: a.klanten?.achternaam,
+        type: a.consulttypes?.type,
+        type_prijs: a.consulttypes?.prijs
+    }));
+    res.json(rows.map(({ klanten, consulttypes, ...a }) => a));
 });
 
-app.post('/api/afspraken', upload.single('pdf'), (req, res) => {
+app.post('/api/afspraken', authenticateToken, upload.single('pdf'), async (req, res) => {
     const { datum, klant_id, type_id, aantal, terugbetaalbaar, opmerking } = req.body;
-    const pdf_bestand = req.file ? req.file.filename : null;
-    
-    // Get the price for this consultation type
-    db.get("SELECT prijs FROM consulttypes WHERE id = ?", [type_id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        const prijs = row ? row.prijs : 0;
-        const totaal = prijs * (aantal || 1);
-        const maand = new Date(datum);
-        maand.setDate(1);
-        
-        db.run("INSERT INTO afspraken (datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking, maand, pdf_bestand) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-               [datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking, maand.toISOString().split('T')[0], pdf_bestand], function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ id: this.lastID, datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking });
+    let pdfKey = null;
+    if (req.file && supabase) {
+        const bucket = 'afspraak-pdfs';
+        const ext = path.extname(req.file.originalname) || '.pdf';
+        const key = `${req.tenantId}/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        const { error: upErr } = await supabase.storage.from(bucket).upload(key, req.file.buffer, {
+            contentType: 'application/pdf',
+            upsert: false
         });
-    });
+        if (!upErr) pdfKey = key;
+    }
+    const { data: typeRow, error: typeErr } = await supabase
+        .from('consulttypes')
+        .select('prijs')
+        .eq('id', type_id)
+        .eq('tenant_id', req.tenantId)
+        .single();
+    if (typeErr) return res.status(500).json({ error: typeErr.message });
+    const prijs = typeRow?.prijs ?? 0;
+    const totaal = prijs * (Number(aantal) || 1);
+    const d = new Date(datum);
+    d.setDate(1);
+    const maand = d.toISOString().split('T')[0];
+    const { data, error } = await supabase
+        .from('afspraken')
+        .insert({
+            tenant_id: req.tenantId,
+            datum,
+            klant_id: Number(klant_id),
+            type_id: Number(type_id),
+            aantal: Number(aantal) || 1,
+            prijs,
+            totaal,
+            terugbetaalbaar: Boolean(terugbetaalbaar),
+            opmerking: opmerking || null,
+            maand,
+            pdf_bestand: pdfKey
+        })
+        .select('id, datum, klant_id, type_id, aantal, prijs, totaal, terugbetaalbaar, opmerking')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
-// Uitgaven
-app.get('/api/uitgaven', authenticateToken, (req, res) => {
-    db.all(`SELECT u.*, c.categorie
-            FROM uitgaven u
-            LEFT JOIN categorieen c ON u.categorie_id = c.id
-            ORDER BY u.datum DESC`, (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+app.put('/api/afspraken/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { datum, klant_id, type_id, aantal, terugbetaalbaar, opmerking } = req.body;
+    const updates = { datum, klant_id: klant_id != null ? Number(klant_id) : undefined, type_id: type_id != null ? Number(type_id) : undefined, aantal: aantal != null ? Number(aantal) : undefined, terugbetaalbaar: terugbetaalbaar != null ? Boolean(terugbetaalbaar) : undefined, opmerking: opmerking !== undefined ? opmerking : undefined };
+    if (datum) {
+        const d = new Date(datum);
+        d.setDate(1);
+        updates.maand = d.toISOString().split('T')[0];
+    }
+    if (type_id != null) {
+        const { data: typeRow } = await supabase.from('consulttypes').select('prijs').eq('id', type_id).eq('tenant_id', req.tenantId).single();
+        const prijs = typeRow?.prijs ?? 0;
+        updates.prijs = prijs;
+        updates.totaal = prijs * (Number(aantal) || 1);
+    }
+    Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
+    const { error } = await supabase.from('afspraken').update(updates).eq('id', id).eq('tenant_id', req.tenantId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Afspraak updated successfully' });
 });
 
-app.post('/api/uitgaven', (req, res) => {
+// PDF download: return signed URL for tenant-scoped file
+app.get('/api/afspraken/:id/pdf', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { data: afspraak, error } = await supabase
+        .from('afspraken')
+        .select('pdf_bestand')
+        .eq('id', id)
+        .eq('tenant_id', req.tenantId)
+        .single();
+    if (error || !afspraak) return res.status(404).json({ error: 'Afspraak not found' });
+    if (!afspraak.pdf_bestand) return res.status(404).json({ error: 'No PDF for this afspraak' });
+    const { data: signed, error: signErr } = await supabase.storage
+        .from('afspraak-pdfs')
+        .createSignedUrl(afspraak.pdf_bestand, 60);
+    if (signErr) return res.status(500).json({ error: signErr.message });
+    res.json({ url: signed.signedUrl });
+});
+
+// --- Uitgaven
+app.get('/api/uitgaven', authenticateToken, async (req, res) => {
+    const { data: uitgaven, error } = await supabase
+        .from('uitgaven')
+        .select('*, categorieen (categorie)')
+        .eq('tenant_id', req.tenantId)
+        .order('datum', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    const rows = (uitgaven || []).map(u => ({
+        ...u,
+        categorie: u.categorieen?.categorie ?? null
+    }));
+    res.json(rows.map(({ categorieen, ...u }) => u));
+});
+
+app.put('/api/uitgaven/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
     const { datum, beschrijving, categorie_id, bedrag, betaalmethode } = req.body;
-    const maand = new Date(datum);
-    maand.setDate(1);
-    
-    db.run("INSERT INTO uitgaven (datum, beschrijving, categorie_id, bedrag, betaalmethode, maand) VALUES (?, ?, ?, ?, ?, ?)", 
-           [datum, beschrijving, categorie_id, bedrag, betaalmethode, maand.toISOString().split('T')[0]], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ id: this.lastID, datum, beschrijving, categorie_id, bedrag, betaalmethode });
-    });
+    const updates = { beschrijving, categorie_id: categorie_id != null ? Number(categorie_id) : null, bedrag: bedrag != null ? Number(bedrag) : undefined, betaalmethode: betaalmethode !== undefined ? betaalmethode : null };
+    if (datum) {
+        updates.datum = datum;
+        const d = new Date(datum);
+        d.setDate(1);
+        updates.maand = d.toISOString().split('T')[0];
+    }
+    Object.keys(updates).forEach(k => updates[k] === undefined && delete updates[k]);
+    const { error } = await supabase.from('uitgaven').update(updates).eq('id', id).eq('tenant_id', req.tenantId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Uitgave updated successfully' });
 });
 
-// Dashboard data
-app.get('/api/dashboard', authenticateToken, (req, res) => {
+app.post('/api/uitgaven', authenticateToken, async (req, res) => {
+    const { datum, beschrijving, categorie_id, bedrag, betaalmethode } = req.body;
+    const d = new Date(datum);
+    d.setDate(1);
+    const maand = d.toISOString().split('T')[0];
+    const { data, error } = await supabase
+        .from('uitgaven')
+        .insert({
+            tenant_id: req.tenantId,
+            datum,
+            beschrijving,
+            categorie_id: categorie_id ? Number(categorie_id) : null,
+            bedrag: Number(bedrag),
+            betaalmethode: betaalmethode || null,
+            maand
+        })
+        .select('id, datum, beschrijving, categorie_id, bedrag, betaalmethode')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+// --- Dashboard
+app.get('/api/dashboard', authenticateToken, async (req, res) => {
     const currentMonth = new Date();
     currentMonth.setDate(1);
     const currentMonthStr = currentMonth.toISOString().split('T')[0];
-    
-    // Get current month income
-    db.get("SELECT COALESCE(SUM(totaal), 0) as inkomsten FROM afspraken WHERE maand = ?", [currentMonthStr], (err, incomeRow) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        // Get current month expenses
-        db.get("SELECT COALESCE(SUM(bedrag), 0) as uitgaven FROM uitgaven WHERE maand = ?", [currentMonthStr], (err, expenseRow) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            
-            const inkomsten = incomeRow.inkomsten;
-            const uitgaven = expenseRow.uitgaven;
-            const netto = inkomsten - uitgaven;
-            
-            res.json({
-                inkomsten,
-                uitgaven,
-                netto
-            });
-        });
-    });
+    const { data: income } = await supabase
+        .from('afspraken')
+        .select('totaal')
+        .eq('tenant_id', req.tenantId)
+        .eq('maand', currentMonthStr);
+    const { data: expense } = await supabase
+        .from('uitgaven')
+        .select('bedrag')
+        .eq('tenant_id', req.tenantId)
+        .eq('maand', currentMonthStr);
+    const inkomsten = (income || []).reduce((s, r) => s + Number(r.totaal || 0), 0);
+    const uitgaven = (expense || []).reduce((s, r) => s + Number(r.bedrag || 0), 0);
+    res.json({ inkomsten, uitgaven, netto: inkomsten - uitgaven });
 });
 
-// Monthly overview
-app.get('/api/maandoverzicht', authenticateToken, (req, res) => {
+// --- Maandoverzicht (Postgres: EXTRACT / to_char for month)
+app.get('/api/maandoverzicht', authenticateToken, async (req, res) => {
     const year = new Date().getFullYear();
-    
-    db.all(`SELECT 
-                strftime('%m', months.maand) as maand_nummer,
-                COALESCE(SUM(a.totaal), 0) as inkomsten,
-                COALESCE(SUM(u.bedrag), 0) as uitgaven
-            FROM (
-                SELECT DISTINCT maand FROM afspraken 
-                WHERE strftime('%Y', maand) = ?
-                UNION
-                SELECT DISTINCT maand FROM uitgaven 
-                WHERE strftime('%Y', maand) = ?
-            ) months
-            LEFT JOIN afspraken a ON months.maand = a.maand
-            LEFT JOIN uitgaven u ON months.maand = u.maand
-            GROUP BY months.maand
-            ORDER BY months.maand`, [year.toString(), year.toString()], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        // Fill in missing months with zeros
-        const monthlyData = [];
-        for (let i = 1; i <= 12; i++) {
-            const monthStr = i.toString().padStart(2, '0');
-            const existingMonth = rows.find(row => row.maand_nummer === monthStr);
-            monthlyData.push({
-                maand: monthStr,
-                inkomsten: existingMonth ? existingMonth.inkomsten : 0,
-                uitgaven: existingMonth ? existingMonth.uitgaven : 0,
-                netto: existingMonth ? (existingMonth.inkomsten - existingMonth.uitgaven) : 0
-            });
-        }
-        
-        res.json(monthlyData);
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    const { data: afspraken } = await supabase
+        .from('afspraken')
+        .select('maand, totaal')
+        .eq('tenant_id', req.tenantId)
+        .gte('maand', yearStart)
+        .lte('maand', yearEnd);
+    const { data: uitgaven } = await supabase
+        .from('uitgaven')
+        .select('maand, bedrag')
+        .eq('tenant_id', req.tenantId)
+        .gte('maand', yearStart)
+        .lte('maand', yearEnd);
+    const byMonth = {};
+    for (let i = 1; i <= 12; i++) {
+        const m = i.toString().padStart(2, '0');
+        byMonth[m] = { inkomsten: 0, uitgaven: 0 };
+    }
+    (afspraken || []).forEach(a => {
+        const m = a.maand ? String(a.maand).slice(5, 7) : null;
+        if (m && byMonth[m]) byMonth[m].inkomsten += Number(a.totaal || 0);
     });
+    (uitgaven || []).forEach(u => {
+        const m = u.maand ? String(u.maand).slice(5, 7) : null;
+        if (m && byMonth[m]) byMonth[m].uitgaven += Number(u.bedrag || 0);
+    });
+    const monthlyData = Object.entries(byMonth).map(([maand, v]) => ({
+        maand,
+        inkomsten: v.inkomsten,
+        uitgaven: v.uitgaven,
+        netto: v.inkomsten - v.uitgaven
+    }));
+    res.json(monthlyData);
 });
 
-// Terugbetaling signals
-app.get('/api/terugbetaling-signalen', authenticateToken, (req, res) => {
+// --- Terugbetaling signalen
+app.get('/api/terugbetaling-signalen', authenticateToken, async (req, res) => {
     const currentYear = new Date().getFullYear();
     const yearStart = `${currentYear}-01-01`;
     const yearEnd = `${currentYear + 1}-01-01`;
-    
-    db.all(`SELECT 
-                k.id as klant_id,
-                k.voornaam,
-                k.achternaam,
-                m.naam as mutualiteit_naam,
-                m.maxSessiesPerJaar,
-                COUNT(a.id) as sessies_terugbetaalbaar
-            FROM klanten k
-            LEFT JOIN mutualiteiten m ON k.mutualiteit_id = m.id
-            LEFT JOIN afspraken a ON k.id = a.klant_id 
-                AND a.datum >= ? 
-                AND a.datum < ? 
-                AND a.terugbetaalbaar = 1
-            GROUP BY k.id, k.voornaam, k.achternaam, m.naam, m.maxSessiesPerJaar
-            HAVING m.maxSessiesPerJaar IS NOT NULL 
-                AND sessies_terugbetaalbaar >= m.maxSessiesPerJaar`, 
-           [yearStart, yearEnd], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
+    const { data: klanten } = await supabase
+        .from('klanten')
+        .select('id, voornaam, achternaam, mutualiteit_id')
+        .eq('tenant_id', req.tenantId);
+    if (!klanten?.length) return res.json([]);
+    const mutIds = [...new Set(klanten.map(k => k.mutualiteit_id).filter(Boolean))];
+    const { data: mutualiteiten } = await supabase
+        .from('mutualiteiten')
+        .select('id, naam, max_sessies_per_jaar')
+        .in('id', mutIds);
+    const maxByMut = {};
+    (mutualiteiten || []).forEach(m => {
+        if (m.max_sessies_per_jaar != null) maxByMut[m.id] = m.max_sessies_per_jaar;
     });
+    const { data: afspraken } = await supabase
+        .from('afspraken')
+        .select('klant_id')
+        .eq('tenant_id', req.tenantId)
+        .eq('terugbetaalbaar', true)
+        .gte('datum', yearStart)
+        .lt('datum', yearEnd);
+    const countByKlant = {};
+    (afspraken || []).forEach(a => {
+        countByKlant[a.klant_id] = (countByKlant[a.klant_id] || 0) + 1;
+    });
+    const out = [];
+    for (const k of klanten) {
+        const maxSessies = maxByMut[k.mutualiteit_id];
+        if (maxSessies == null) continue;
+        const sessies = countByKlant[k.id] || 0;
+        if (sessies >= maxSessies) {
+            const mut = (mutualiteiten || []).find(m => m.id === k.mutualiteit_id);
+            out.push({
+                klant_id: k.id,
+                voornaam: k.voornaam,
+                achternaam: k.achternaam,
+                mutualiteit_naam: mut?.naam,
+                maxSessiesPerJaar: mut?.max_sessies_per_jaar,
+                sessies_terugbetaalbaar: sessies
+            });
+        }
+    }
+    res.json(out);
 });
 
-// Serve the main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index-production.html'));
 });
-
-// Serve login page
+app.get('/index.html', (req, res) => {
+    res.redirect(302, '/');
+});
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-// Export for Vercel
 module.exports = app;
 
-// Start server only if not in Vercel environment
 if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
     app.listen(PORT, () => {
         console.log(`Diëtist Laura server running on port ${PORT}`);
-    });
-
-    // Graceful shutdown
-    process.on('SIGINT', () => {
-        console.log('\nShutting down server...');
-        db.close((err) => {
-            if (err) {
-                console.error(err.message);
-            }
-            console.log('Database connection closed.');
-            process.exit(0);
-        });
     });
 }

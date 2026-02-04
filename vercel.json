@@ -23,8 +23,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "env": {
-    "JWT_SECRET": "laura_boekhouding_secret_key_2024_secure"
-  }
+  ]
 }
