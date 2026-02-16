@@ -8,7 +8,7 @@
   ],
   "functions": {
     "server.js": {
-      "includeFiles": ["styles.css", "app.js", "index-production.html", "login.html"]
+      "includeFiles": "**/*.{css,js,html}"
     }
   },
   "routes": [
