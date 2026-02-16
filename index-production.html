@@ -114,43 +114,420 @@
                     </div>
                 </div>
 
-                <!-- Login Page -->
-                <div id="login-page" class="page">
-                    <div class="login-container">
-                        <div class="login-header">
-                            <h1><i class="fas fa-chart-line"></i> Diëtist Laura</h1>
-                            <p>Voer je inloggegevens in om toegang te krijgen</p>
-                        </div>
-
-                        <div id="messageContainer"></div>
-
-                        <form id="loginForm">
-                            <div class="form-group">
-                                <label for="username">Gebruikersnaam</label>
-                                <input type="text" id="username" name="username" required autocomplete="username">
-                            </div>
-
-                            <div class="form-group password-toggle">
-                                <label for="password">Wachtwoord</label>
-                                <input type="password" id="password" name="password" required autocomplete="current-password">
-                                <button type="button" id="togglePassword">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-
-                            <button type="submit" class="btn" id="loginBtn">
-                                <span class="btn-text">Inloggen</span>
-                                <div class="loading" id="loading">
-                                    <div class="spinner"></div>
-                                    <span>Inloggen...</span>
-                                </div>
+                <!-- Klanten Page -->
+                <div id="klanten-page" class="page">
+                    <div class="page-header">
+                        <h2>Klantenbeheer</h2>
+                        <div class="page-actions">
+                            <button class="btn btn-success btn-sm" id="exportKlantenBtn" title="Exporteer klanten naar Excel">
+                                <i class="fas fa-file-excel"></i> Excel
                             </button>
-                        </form>
+                            <button class="btn btn-primary" id="addKlantBtn">
+                                <i class="fas fa-plus"></i> Nieuwe Klant
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="klantenTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Naam</th>
+                                    <th>E-mail</th>
+                                    <th>Telefoon</th>
+                                    <th>Startdatum</th>
+                                    <th>Mutualiteit</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody id="klantenTableBody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Rest of the pages remain the same as original index.html -->
-                <!-- (I'll include the key pages for brevity) -->
+                <!-- Afspraken Page -->
+                <div id="afspraken-page" class="page">
+                    <div class="page-header">
+                        <h2>Afsprakenbeheer</h2>
+                        <div class="page-actions">
+                            <button class="btn btn-success btn-sm" id="exportAfsprakenBtn" title="Exporteer afspraken naar Excel">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn btn-primary" id="addAfspraakBtn">
+                                <i class="fas fa-plus"></i> Nieuwe Afspraak
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="afsprakenTable">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Klant</th>
+                                    <th>Type</th>
+                                    <th>Aantal</th>
+                                    <th>Prijs</th>
+                                    <th>Totaal</th>
+                                    <th>Terugbetaalbaar</th>
+                                    <th>PDF</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody id="afsprakenTableBody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Uitgaven Page -->
+                <div id="uitgaven-page" class="page">
+                    <div class="page-header">
+                        <h2>Uitgavenbeheer</h2>
+                        <div class="page-actions">
+                            <button class="btn btn-success btn-sm" id="exportUitgavenBtn" title="Exporteer uitgaven naar Excel">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn btn-primary" id="addUitgaveBtn">
+                                <i class="fas fa-plus"></i> Nieuwe Uitgave
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="uitgavenTable">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Beschrijving</th>
+                                    <th>Categorie</th>
+                                    <th>Bedrag</th>
+                                    <th>Betaalmethode</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody id="uitgavenTableBody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Terugbetaling Page -->
+                <div id="terugbetaling-page" class="page">
+                    <div class="page-header">
+                        <h2>Terugbetaling Signalen</h2>
+                        <p class="page-description">
+                            Dit overzicht toont klanten die in het lopende jaar een drempel bereiken voor terugbetaling, 
+                            afhankelijk van de mutualiteitsregels.
+                        </p>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="terugbetalingTable">
+                            <thead>
+                                <tr>
+                                    <th>Klant</th>
+                                    <th>Mutualiteit</th>
+                                    <th>Sessies dit jaar</th>
+                                    <th>Melding</th>
+                                </tr>
+                            </thead>
+                            <tbody id="terugbetalingTableBody">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Instellingen Page -->
+                <div id="instellingen-page" class="page">
+                    <div class="page-header">
+                        <h2>Instellingen</h2>
+                    </div>
+                    <div class="settings-grid">
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <h3>Consultatietypes</h3>
+                                <button class="btn btn-primary btn-sm" id="addConsulttypeBtn">
+                                    <i class="fas fa-plus"></i> Nieuw
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table" id="consulttypesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Prijs</th>
+                                            <th>Acties</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="consulttypesTableBody">
+                                        <!-- Data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <h3>Mutualiteiten</h3>
+                                <button class="btn btn-primary btn-sm" id="addMutualiteitBtn">
+                                    <i class="fas fa-plus"></i> Nieuw
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table" id="mutualiteitenTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Naam</th>
+                                            <th>Max Sessies/Jaar</th>
+                                            <th>Opmerking</th>
+                                            <th>Acties</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="mutualiteitenTableBody">
+                                        <!-- Data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <h3>Categorieën</h3>
+                                <button class="btn btn-primary btn-sm" id="addCategorieBtn">
+                                    <i class="fas fa-plus"></i> Nieuw
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table" id="categorieenTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Categorie</th>
+                                            <th>Acties</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="categorieenTableBody">
+                                        <!-- Data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Klant Modal -->
+    <div id="klantModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="klantModalTitle">Nieuwe Klant</h3>
+                <span class="close" id="klantModalClose">&times;</span>
+            </div>
+            <form id="klantForm">
+                <div class="form-group">
+                    <label for="voornaam">Voornaam *</label>
+                    <input type="text" id="voornaam" name="voornaam" required>
+                </div>
+                <div class="form-group">
+                    <label for="achternaam">Achternaam *</label>
+                    <input type="text" id="achternaam" name="achternaam" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="telefoon">Telefoon</label>
+                    <input type="tel" id="telefoon" name="telefoon">
+                </div>
+                <div class="form-group">
+                    <label for="startdatum">Startdatum</label>
+                    <input type="date" id="startdatum" name="startdatum">
+                </div>
+                <div class="form-group">
+                    <label for="mutualiteit">Mutualiteit</label>
+                    <select id="mutualiteit" name="mutualiteit">
+                        <option value="">Selecteer mutualiteit</option>
+                    </select>
+                </div>
+                <div class="form-group" id="solidarisUitzonderingGroup" style="display: none;">
+                    <label>
+                        <input type="checkbox" id="solidarisUitzondering" name="solidaris_uitzondering">
+                        Solidaris uitzondering (met doktersattest - 8 sessies i.p.v. 4)
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="klantCancelBtn">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Afspraak Modal -->
+    <div id="afspraakModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="afspraakModalTitle">Nieuwe Afspraak</h3>
+                <span class="close" id="afspraakModalClose">&times;</span>
+            </div>
+            <form id="afspraakForm">
+                <div class="form-group">
+                    <label for="afspraakDatum">Datum *</label>
+                    <input type="date" id="afspraakDatum" name="datum" required>
+                </div>
+                <div class="form-group">
+                    <label for="afspraakKlant">Klant *</label>
+                    <select id="afspraakKlant" name="klant_id" required>
+                        <option value="">Selecteer klant</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="afspraakType">Type *</label>
+                    <select id="afspraakType" name="type_id" required>
+                        <option value="">Selecteer type</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="aantal">Aantal</label>
+                    <input type="number" id="aantal" name="aantal" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="terugbetaalbaar">Terugbetaalbaar</label>
+                    <select id="terugbetaalbaar" name="terugbetaalbaar">
+                        <option value="0">Nee</option>
+                        <option value="1">Ja</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="opmerking">Opmerking</label>
+                    <textarea id="opmerking" name="opmerking" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="pdfUpload">PDF Document (optioneel)</label>
+                    <input type="file" id="pdfUpload" name="pdf" accept=".pdf" />
+                    <small class="form-text">Alleen PDF bestanden zijn toegestaan (max 10MB)</small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="afspraakCancelBtn">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Uitgave Modal -->
+    <div id="uitgaveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="uitgaveModalTitle">Nieuwe Uitgave</h3>
+                <span class="close" id="uitgaveModalClose">&times;</span>
+            </div>
+            <form id="uitgaveForm">
+                <div class="form-group">
+                    <label for="uitgaveDatum">Datum *</label>
+                    <input type="date" id="uitgaveDatum" name="datum" required>
+                </div>
+                <div class="form-group">
+                    <label for="beschrijving">Beschrijving *</label>
+                    <input type="text" id="beschrijving" name="beschrijving" required>
+                </div>
+                <div class="form-group">
+                    <label for="uitgaveCategorie">Categorie</label>
+                    <select id="uitgaveCategorie" name="categorie_id">
+                        <option value="">Selecteer categorie</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bedrag">Bedrag *</label>
+                    <input type="number" id="bedrag" name="bedrag" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="betaalmethode">Betaalmethode</label>
+                    <input type="text" id="betaalmethode" name="betaalmethode" placeholder="Bijv. Kaart, Cash, Overschrijving">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="uitgaveCancelBtn">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Consulttype Modal -->
+    <div id="consulttypeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="consulttypeModalTitle">Nieuw Consulttype</h3>
+                <span class="close" id="consulttypeModalClose">&times;</span>
+            </div>
+            <form id="consulttypeForm">
+                <div class="form-group">
+                    <label for="consulttypeType">Type *</label>
+                    <input type="text" id="consulttypeType" name="type" required>
+                </div>
+                <div class="form-group">
+                    <label for="consulttypePrijs">Prijs (€)</label>
+                    <input type="number" id="consulttypePrijs" name="prijs" step="0.01" min="0">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="consulttypeCancelBtn">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mutualiteit Modal -->
+    <div id="mutualiteitModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="mutualiteitModalTitle">Nieuwe Mutualiteit</h3>
+                <span class="close" id="mutualiteitModalClose">&times;</span>
+            </div>
+            <form id="mutualiteitForm">
+                <div class="form-group">
+                    <label for="mutualiteitNaam">Naam *</label>
+                    <input type="text" id="mutualiteitNaam" name="naam" required>
+                </div>
+                <div class="form-group">
+                    <label for="mutualiteitMaxSessies">Max Sessies per Jaar</label>
+                    <input type="number" id="mutualiteitMaxSessies" name="maxSessiesPerJaar" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="mutualiteitOpmerking">Opmerking</label>
+                    <textarea id="mutualiteitOpmerking" name="opmerking" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="mutualiteitCancelBtn">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Categorie Modal -->
+    <div id="categorieModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="categorieModalTitle">Nieuwe Categorie</h3>
+                <span class="close" id="categorieModalClose">&times;</span>
+            </div>
+            <form id="categorieForm">
+                <div class="form-group">
+                    <label for="categorieNaam">Categorie *</label>
+                    <input type="text" id="categorieNaam" name="categorie" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="categorieCancelBtn">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
             </div>
         </main>
     </div>

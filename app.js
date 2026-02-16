@@ -25,18 +25,31 @@ class LauraBoekhouding {
             return;
         }
 
-        // Verify token is still valid
-        const isValid = await this.verifyToken();
-        if (!isValid) {
+        // Verify token is still valid and get user info
+        const userInfo = await this.verifyToken();
+        if (!userInfo) {
             localStorage.removeItem('authToken');
             window.location.href = '/login';
             return;
         }
 
+        // Update user display name (optional, can be removed if not needed)
+        const userSpan = document.querySelector('.user-info span');
+        if (userSpan && userInfo && userInfo.displayName) {
+            userSpan.textContent = userInfo.displayName;
+        }
+
         this.setupEventListeners();
         await this.loadAllData();
-        this.showPage('dashboard');
-        this.setupChart();
+        
+        // Ensure dashboard page is visible
+        const dashboardPage = document.getElementById('dashboard-page');
+        if (dashboardPage) {
+            this.showPage('dashboard');
+            this.setupChart();
+        } else {
+            console.error('Dashboard page element not found! Check HTML structure.');
+        }
     }
 
     setupEventListeners() {
@@ -49,20 +62,32 @@ class LauraBoekhouding {
         });
 
         // Menu toggle for mobile
-        document.getElementById('menuToggle').addEventListener('click', () => {
-            document.querySelector('.sidebar').classList.toggle('open');
-        });
+        const menuToggle = document.getElementById('menuToggle');
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                document.querySelector('.sidebar')?.classList.toggle('open');
+            });
+        }
 
         // Logout button
-        document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.logout());
+        }
 
-        // Modal buttons
-        document.getElementById('addKlantBtn').addEventListener('click', () => this.openKlantModal());
-        document.getElementById('addAfspraakBtn').addEventListener('click', () => this.openAfspraakModal());
-        document.getElementById('addUitgaveBtn').addEventListener('click', () => this.openUitgaveModal());
-        document.getElementById('addConsulttypeBtn').addEventListener('click', () => this.openConsulttypeModal());
-        document.getElementById('addMutualiteitBtn').addEventListener('click', () => this.openMutualiteitModal());
-        document.getElementById('addCategorieBtn').addEventListener('click', () => this.openCategorieModal());
+        // Modal buttons (with null checks)
+        const addKlantBtn = document.getElementById('addKlantBtn');
+        if (addKlantBtn) addKlantBtn.addEventListener('click', () => this.openKlantModal());
+        const addAfspraakBtn = document.getElementById('addAfspraakBtn');
+        if (addAfspraakBtn) addAfspraakBtn.addEventListener('click', () => this.openAfspraakModal());
+        const addUitgaveBtn = document.getElementById('addUitgaveBtn');
+        if (addUitgaveBtn) addUitgaveBtn.addEventListener('click', () => this.openUitgaveModal());
+        const addConsulttypeBtn = document.getElementById('addConsulttypeBtn');
+        if (addConsulttypeBtn) addConsulttypeBtn.addEventListener('click', () => this.openConsulttypeModal());
+        const addMutualiteitBtn = document.getElementById('addMutualiteitBtn');
+        if (addMutualiteitBtn) addMutualiteitBtn.addEventListener('click', () => this.openMutualiteitModal());
+        const addCategorieBtn = document.getElementById('addCategorieBtn');
+        if (addCategorieBtn) addCategorieBtn.addEventListener('click', () => this.openCategorieModal());
 
         // Export buttons
         document.getElementById('exportExcelBtn').addEventListener('click', () => this.exportAllToExcel());
@@ -87,13 +112,19 @@ class LauraBoekhouding {
         document.getElementById('mutualiteitCancelBtn').addEventListener('click', () => this.closeModal('mutualiteitModal'));
         document.getElementById('categorieCancelBtn').addEventListener('click', () => this.closeModal('categorieModal'));
 
-        // Form submissions
-        document.getElementById('klantForm').addEventListener('submit', (e) => this.handleKlantSubmit(e));
-        document.getElementById('afspraakForm').addEventListener('submit', (e) => this.handleAfspraakSubmit(e));
-        document.getElementById('uitgaveForm').addEventListener('submit', (e) => this.handleUitgaveSubmit(e));
-        document.getElementById('consulttypeForm').addEventListener('submit', (e) => this.handleConsulttypeSubmit(e));
-        document.getElementById('mutualiteitForm').addEventListener('submit', (e) => this.handleMutualiteitSubmit(e));
-        document.getElementById('categorieForm').addEventListener('submit', (e) => this.handleCategorieSubmit(e));
+        // Form submissions (with null checks)
+        const klantForm = document.getElementById('klantForm');
+        if (klantForm) klantForm.addEventListener('submit', (e) => this.handleKlantSubmit(e));
+        const afspraakForm = document.getElementById('afspraakForm');
+        if (afspraakForm) afspraakForm.addEventListener('submit', (e) => this.handleAfspraakSubmit(e));
+        const uitgaveForm = document.getElementById('uitgaveForm');
+        if (uitgaveForm) uitgaveForm.addEventListener('submit', (e) => this.handleUitgaveSubmit(e));
+        const consulttypeForm = document.getElementById('consulttypeForm');
+        if (consulttypeForm) consulttypeForm.addEventListener('submit', (e) => this.handleConsulttypeSubmit(e));
+        const mutualiteitForm = document.getElementById('mutualiteitForm');
+        if (mutualiteitForm) mutualiteitForm.addEventListener('submit', (e) => this.handleMutualiteitSubmit(e));
+        const categorieForm = document.getElementById('categorieForm');
+        if (categorieForm) categorieForm.addEventListener('submit', (e) => this.handleCategorieSubmit(e));
 
         // Close modals when clicking outside
         window.addEventListener('click', (e) => {
@@ -139,12 +170,24 @@ class LauraBoekhouding {
                 terugbetalingSignalen
             };
 
+            // Debug logging
+            console.log('Data loaded:', {
+                klanten: klanten?.length || 0,
+                afspraken: afspraken?.length || 0,
+                uitgaven: uitgaven?.length || 0,
+                consulttypes: consulttypes?.length || 0,
+                mutualiteiten: mutualiteiten?.length || 0,
+                categorieen: categorieen?.length || 0,
+                dashboard: dashboard,
+                terugbetalingSignalen: terugbetalingSignalen?.length || 0
+            });
+
             this.updateAllTables();
             this.updateDashboard();
             
-            // Only show success message if we're not on initial load
-            if (this.data.klanten.length > 0 || this.data.consulttypes.length > 0) {
-                console.log('Data loaded successfully');
+            // Show message if no data at all
+            if (klanten.length === 0 && consulttypes.length === 0 && mutualiteiten.length === 0) {
+                console.warn('Geen data gevonden. Zorg ervoor dat je migrations hebt uitgevoerd en data hebt toegevoegd.');
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -161,7 +204,11 @@ class LauraBoekhouding {
                     'Content-Type': 'application/json'
                 }
             });
-            return response.ok;
+            if (response.ok) {
+                const data = await response.json();
+                return data.user || { displayName: 'Gebruiker' };
+            }
+            return false;
         } catch (error) {
             console.error('Token verification failed:', error);
             return false;
@@ -183,12 +230,17 @@ class LauraBoekhouding {
                     window.location.href = '/login';
                     return;
                 }
-                throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                const errorText = await response.text();
+                console.error(`API Error for ${url}:`, response.status, errorText);
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             return await response.json();
         } catch (error) {
             console.error(`Fetch error for ${url}:`, error);
-            throw error;
+            // Return empty array/object instead of throwing to prevent app crash
+            if (url.includes('dashboard')) return { inkomsten: 0, uitgaven: 0, netto: 0 };
+            if (url.includes('maandoverzicht') || url.includes('terugbetaling')) return [];
+            return [];
         }
     }
 
@@ -213,17 +265,30 @@ class LauraBoekhouding {
     }
 
     showPage(page) {
+        console.log('Showing page:', page);
+        
         // Update navigation
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelector(`[data-page="${page}"]`).classList.add('active');
+        const navItem = document.querySelector(`[data-page="${page}"]`);
+        if (navItem) {
+            navItem.classList.add('active');
+        } else {
+            console.warn('Navigation item not found for page:', page);
+        }
 
         // Update page content
         document.querySelectorAll('.page').forEach(p => {
             p.classList.remove('active');
         });
-        document.getElementById(`${page}-page`).classList.add('active');
+        const pageElement = document.getElementById(`${page}-page`);
+        if (pageElement) {
+            pageElement.classList.add('active');
+            console.log('Page element found and activated:', `${page}-page`);
+        } else {
+            console.error('Page element not found:', `${page}-page`);
+        }
 
         // Update page title
         const titles = {
@@ -283,8 +348,11 @@ class LauraBoekhouding {
                 <td>${klant.startdatum ? new Date(klant.startdatum).toLocaleDateString('nl-NL') : '-'}</td>
                 <td>${klant.mutualiteit_naam || '-'}</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="app.editKlant(${klant.id})">
+                    <button class="btn btn-sm btn-secondary" onclick="app.editKlant(${klant.id})" title="Bewerken">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteKlant(${klant.id})" title="Verwijderen" style="margin-left: 0.5rem;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             `;
@@ -327,8 +395,11 @@ class LauraBoekhouding {
                 <td>${afspraak.terugbetaalbaar ? 'Ja' : 'Nee'}</td>
                 <td>${pdfButton}</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="app.editAfspraak(${afspraak.id})">
+                    <button class="btn btn-sm btn-secondary" onclick="app.editAfspraak(${afspraak.id})" title="Bewerken">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteAfspraak(${afspraak.id})" title="Verwijderen" style="margin-left: 0.5rem;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             `;
@@ -362,8 +433,11 @@ class LauraBoekhouding {
                 <td>€${uitgave.bedrag.toFixed(2)}</td>
                 <td>${uitgave.betaalmethode || '-'}</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="app.editUitgave(${uitgave.id})">
+                    <button class="btn btn-sm btn-secondary" onclick="app.editUitgave(${uitgave.id})" title="Bewerken">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteUitgave(${uitgave.id})" title="Verwijderen" style="margin-left: 0.5rem;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             `;
@@ -390,14 +464,14 @@ class LauraBoekhouding {
 
         this.data.terugbetalingSignalen.forEach(signaal => {
             const row = document.createElement('tr');
+            const meldingText = signaal.melding || 'Klant informeren over terugbetaling';
             row.innerHTML = `
                 <td>${signaal.voornaam} ${signaal.achternaam}</td>
                 <td>${signaal.mutualiteit_naam || '-'}</td>
-                <td>${signaal.sessies_terugbetaalbaar}</td>
-                <td>${signaal.maxSessiesPerJaar || '-'}</td>
+                <td>${signaal.sessies_terugbetaalbaar || 0}</td>
                 <td>
-                    <span class="message error" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                        MELDEN: klant informeren over terugbetaling
+                    <span class="message ${signaal.resterend !== null && signaal.resterend === 0 ? 'error' : 'success'}" style="padding: 0.5rem 0.75rem; font-size: 0.875rem; display: inline-block;">
+                        ${meldingText}
                     </span>
                 </td>
             `;
@@ -415,8 +489,11 @@ class LauraBoekhouding {
                 <td>${type.type}</td>
                 <td>${type.prijs ? '€' + type.prijs.toFixed(2) : '-'}</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="app.editConsulttype(${type.id})">
+                    <button class="btn btn-sm btn-secondary" onclick="app.editConsulttype(${type.id})" title="Bewerken">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteConsulttype(${type.id})" title="Verwijderen" style="margin-left: 0.5rem;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             `;
@@ -433,8 +510,11 @@ class LauraBoekhouding {
                 <td>${mut.maxSessiesPerJaar || '-'}</td>
                 <td>${mut.opmerking || '-'}</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="app.editMutualiteit(${mut.id})">
+                    <button class="btn btn-sm btn-secondary" onclick="app.editMutualiteit(${mut.id})" title="Bewerken">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteMutualiteit(${mut.id})" title="Verwijderen" style="margin-left: 0.5rem;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             `;
@@ -449,8 +529,11 @@ class LauraBoekhouding {
             row.innerHTML = `
                 <td>${cat.categorie}</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="app.editCategorie(${cat.id})">
+                    <button class="btn btn-sm btn-secondary" onclick="app.editCategorie(${cat.id})" title="Bewerken">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="app.deleteCategorie(${cat.id})" title="Verwijderen" style="margin-left: 0.5rem;">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             `;
@@ -518,6 +601,9 @@ class LauraBoekhouding {
         const modal = document.getElementById('klantModal');
         const form = document.getElementById('klantForm');
         const title = document.getElementById('klantModalTitle');
+        const solidarisGroup = document.getElementById('solidarisUitzonderingGroup');
+        const solidarisCheckbox = document.getElementById('solidarisUitzondering');
+        const mutualiteitSelect = document.getElementById('mutualiteit');
         
         if (klant) {
             title.textContent = 'Klant Bewerken';
@@ -528,14 +614,36 @@ class LauraBoekhouding {
             document.getElementById('telefoon').value = klant.telefoon || '';
             document.getElementById('startdatum').value = klant.startdatum || '';
             document.getElementById('mutualiteit').value = klant.mutualiteit_id || '';
+            solidarisCheckbox.checked = klant.solidaris_uitzondering || false;
         } else {
             title.textContent = 'Nieuwe Klant';
             form.reset();
             delete form.dataset.id;
             document.getElementById('startdatum').value = new Date().toISOString().split('T')[0];
+            solidarisCheckbox.checked = false;
         }
 
         this.populateMutualiteitDropdown();
+        
+        // Show/hide Solidaris uitzondering checkbox based on selected mutualiteit
+        const updateSolidarisVisibility = () => {
+            const selectedMut = mutualiteitSelect.value;
+            const selectedMutObj = this.data.mutualiteiten.find(m => m.id == selectedMut);
+            if (selectedMutObj && selectedMutObj.naam.toLowerCase().includes('solidaris')) {
+                solidarisGroup.style.display = 'block';
+            } else {
+                solidarisGroup.style.display = 'none';
+                solidarisCheckbox.checked = false;
+            }
+        };
+        
+        // Set initial visibility
+        updateSolidarisVisibility();
+        
+        // Update on change
+        mutualiteitSelect.removeEventListener('change', updateSolidarisVisibility);
+        mutualiteitSelect.addEventListener('change', updateSolidarisVisibility);
+        
         modal.style.display = 'block';
     }
 
@@ -708,6 +816,9 @@ class LauraBoekhouding {
             data.mutualiteit_id = parseInt(data.mutualiteit);
         }
         delete data.mutualiteit;
+        
+        // Handle solidaris_uitzondering checkbox
+        data.solidaris_uitzondering = document.getElementById('solidarisUitzondering').checked;
 
         try {
             if (e.target.dataset.id) {
@@ -826,9 +937,8 @@ class LauraBoekhouding {
 
         try {
             if (e.target.dataset.id) {
-                // Update existing afspraak (not implemented yet)
-                this.showMessage('Bewerken van afspraken met PDF is nog niet geïmplementeerd', 'error');
-                return;
+                // Update existing afspraak
+                await this.updateAfspraak(e.target.dataset.id, formData);
             } else {
                 // Create new afspraak
                 await this.createAfspraak(formData);
@@ -920,14 +1030,13 @@ class LauraBoekhouding {
         return await response.json();
     }
 
-    async updateAfspraak(id, data) {
+    async updateAfspraak(id, formData) {
         const response = await fetch(`/api/afspraken/${id}`, {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.authToken}`
             },
-            body: JSON.stringify(data)
+            body: formData
         });
         if (!response.ok) {
             if (response.status === 401 || response.status === 403) {
@@ -1077,6 +1186,169 @@ class LauraBoekhouding {
         const categorie = this.data.categorieen.find(c => c.id === id);
         if (categorie) {
             this.openCategorieModal(categorie);
+        }
+    }
+
+    // Delete functions
+    async deleteKlant(id) {
+        if (!confirm('Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende afspraken worden ook verwijderd.')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/klanten/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            await this.loadAllData();
+            this.showMessage('Klant succesvol verwijderd!', 'success');
+        } catch (error) {
+            console.error('Error deleting klant:', error);
+            this.showMessage('Er is een fout opgetreden bij het verwijderen van de klant', 'error');
+        }
+    }
+
+    async deleteAfspraak(id) {
+        if (!confirm('Weet je zeker dat je deze afspraak wilt verwijderen?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/afspraken/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            await this.loadAllData();
+            this.showMessage('Afspraak succesvol verwijderd!', 'success');
+        } catch (error) {
+            console.error('Error deleting afspraak:', error);
+            this.showMessage('Er is een fout opgetreden bij het verwijderen van de afspraak', 'error');
+        }
+    }
+
+    async deleteUitgave(id) {
+        if (!confirm('Weet je zeker dat je deze uitgave wilt verwijderen?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/uitgaven/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            await this.loadAllData();
+            this.showMessage('Uitgave succesvol verwijderd!', 'success');
+        } catch (error) {
+            console.error('Error deleting uitgave:', error);
+            this.showMessage('Er is een fout opgetreden bij het verwijderen van de uitgave', 'error');
+        }
+    }
+
+    async deleteConsulttype(id) {
+        if (!confirm('Weet je zeker dat je dit consulttype wilt verwijderen?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/consulttypes/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            await this.loadAllData();
+            this.showMessage('Consulttype succesvol verwijderd!', 'success');
+        } catch (error) {
+            console.error('Error deleting consulttype:', error);
+            this.showMessage('Er is een fout opgetreden bij het verwijderen van het consulttype', 'error');
+        }
+    }
+
+    async deleteMutualiteit(id) {
+        if (!confirm('Weet je zeker dat je deze mutualiteit wilt verwijderen?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/mutualiteiten/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            await this.loadAllData();
+            this.showMessage('Mutualiteit succesvol verwijderd!', 'success');
+        } catch (error) {
+            console.error('Error deleting mutualiteit:', error);
+            this.showMessage('Er is een fout opgetreden bij het verwijderen van de mutualiteit', 'error');
+        }
+    }
+
+    async deleteCategorie(id) {
+        if (!confirm('Weet je zeker dat je deze categorie wilt verwijderen?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/categorieen/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            await this.loadAllData();
+            this.showMessage('Categorie succesvol verwijderd!', 'success');
+        } catch (error) {
+            console.error('Error deleting categorie:', error);
+            this.showMessage('Er is een fout opgetreden bij het verwijderen van de categorie', 'error');
         }
     }
 
@@ -1271,5 +1543,39 @@ class LauraBoekhouding {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new LauraBoekhouding();
+    console.log('DOM loaded, initializing app...');
+    try {
+        window.app = new LauraBoekhouding();
+        console.log('App initialized successfully');
+        
+        // Debug: Check if pages exist
+        setTimeout(() => {
+            const pages = ['dashboard', 'klanten', 'afspraken', 'uitgaven', 'terugbetaling', 'instellingen'];
+            pages.forEach(page => {
+                const el = document.getElementById(`${page}-page`);
+                console.log(`Page ${page}:`, el ? 'Found' : 'NOT FOUND');
+            });
+            
+            // Check active page
+            const activePage = document.querySelector('.page.active');
+            console.log('Active page:', activePage ? activePage.id : 'NONE');
+            
+            // Check data
+            if (window.app && window.app.data) {
+                console.log('App data:', window.app.data);
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('Error initializing app:', error);
+        console.error('Error stack:', error.stack);
+        // Show error message to user
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 0.5rem; z-index: 10000; max-width: 400px;';
+        errorDiv.innerHTML = `
+            <strong>Fout bij het laden van de applicatie</strong><br>
+            Controleer de browser console (F12) voor details.<br>
+            <small>Error: ${error.message}</small>
+        `;
+        document.body.appendChild(errorDiv);
+    }
 });

@@ -6,7 +6,6 @@
     <title>Diëtist Laura - Login</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -59,8 +58,6 @@
         }
         .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .btn-secondary { background: #64748b; margin-top: 0.5rem; }
-        .btn-secondary:hover { background: #475569; }
         .message { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-weight: 500; }
         .message.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
         .message.success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
@@ -87,123 +84,66 @@
             cursor: pointer;
             padding: 0.25rem;
         }
-        .signup-link { margin-top: 1.5rem; font-size: 0.875rem; color: #64748b; }
-        .signup-link a { color: #667eea; text-decoration: none; font-weight: 500; }
-        .signup-link a:hover { text-decoration: underline; }
-        #signupSection { display: none; }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
             <h1><i class="fas fa-chart-line"></i> Boekhoudsysteem</h1>
-            <p>Voer je inloggegevens in om toegang te krijgen</p>
+            <p>Voer je toegangscode in</p>
         </div>
 
         <div id="messageContainer"></div>
 
-        <div id="loginSection">
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">E-mail</label>
-                    <input type="email" id="email" name="email" required autocomplete="email" placeholder="jouw@email.nl">
+        <form id="loginForm">
+            <div class="form-group password-toggle">
+                <label for="token">Toegangscode</label>
+                <input type="password" id="token" name="token" required autocomplete="off" placeholder="Geheime code">
+                <button type="button" id="togglePassword"><i class="fas fa-eye"></i></button>
+            </div>
+            <button type="submit" class="btn" id="loginBtn">
+                <span class="btn-text">Inloggen</span>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span>Inloggen...</span>
                 </div>
-                <div class="form-group password-toggle">
-                    <label for="password">Wachtwoord</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
-                    <button type="button" id="togglePassword"><i class="fas fa-eye"></i></button>
-                </div>
-                <button type="submit" class="btn" id="loginBtn">
-                    <span class="btn-text">Inloggen</span>
-                    <div class="loading" id="loading">
-                        <div class="spinner"></div>
-                        <span>Inloggen...</span>
-                    </div>
-                </button>
-            </form>
-            <p class="signup-link">Nog geen account? <a href="#" id="showSignup">Registreren</a></p>
-        </div>
-
-        <div id="signupSection">
-            <form id="signupForm">
-                <div class="form-group">
-                    <label for="signupEmail">E-mail</label>
-                    <input type="email" id="signupEmail" name="email" required autocomplete="email" placeholder="jouw@email.nl">
-                </div>
-                <div class="form-group password-toggle">
-                    <label for="signupPassword">Wachtwoord</label>
-                    <input type="password" id="signupPassword" name="password" required autocomplete="new-password" minlength="6">
-                    <button type="button" id="toggleSignupPassword"><i class="fas fa-eye"></i></button>
-                </div>
-                <button type="submit" class="btn" id="signupBtn">
-                    <span class="btn-text">Account aanmaken</span>
-                    <div class="loading" id="signupLoading">
-                        <div class="spinner"></div>
-                        <span>Bezig...</span>
-                    </div>
-                </button>
-            </form>
-            <p class="signup-link">Al een account? <a href="#" id="showLogin">Inloggen</a></p>
-        </div>
+            </button>
+        </form>
     </div>
 
     <script>
-        let supabase = null;
-
-        async function getSupabase() {
-            if (supabase) return supabase;
-            const res = await fetch('/api/config');
-            const { supabaseUrl, supabaseAnonKey } = await res.json();
-            if (!supabaseUrl || !supabaseAnonKey) {
-                throw new Error('Supabase is niet geconfigureerd. Stel SUPABASE_URL en SUPABASE_ANON_KEY in.');
-            }
-            supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-            return supabase;
-        }
-
-        function setAuthToken(accessToken) {
-            localStorage.setItem('authToken', accessToken);
-        }
-
-        function clearAuthToken() {
-            localStorage.removeItem('authToken');
-        }
-
-        async function verifyToken(token) {
-            try {
-                const response = await fetch('/api/verify-token', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                });
-                if (response.ok) window.location.href = '/';
-                else clearAuthToken();
-            } catch (e) {
-                clearAuthToken();
-            }
-        }
-
         function showMessage(message, type) {
             const container = document.getElementById('messageContainer');
             container.innerHTML = `<div class="message ${type}">${message}</div>`;
             setTimeout(() => { container.innerHTML = ''; }, 5000);
         }
 
-        function toggleSection(showSignup) {
-            document.getElementById('loginSection').style.display = showSignup ? 'none' : 'block';
-            document.getElementById('signupSection').style.display = showSignup ? 'block' : 'none';
+        function setAuthToken(token) {
+            localStorage.setItem('authToken', token);
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('authToken');
             if (token) {
-                await verifyToken(token);
-                return;
+                // Verify existing token
+                fetch('/api/verify-token', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }).then(res => {
+                    if (res.ok) {
+                        window.location.href = '/';
+                    }
+                }).catch(() => {
+                    localStorage.removeItem('authToken');
+                });
             }
 
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const email = document.getElementById('email').value.trim();
-                const password = document.getElementById('password').value;
+                const token = document.getElementById('token').value.trim();
                 const loginBtn = document.getElementById('loginBtn');
                 const loading = document.getElementById('loading');
                 const btnText = document.querySelector('#loginBtn .btn-text');
@@ -212,17 +152,21 @@
                 btnText.style.display = 'none';
 
                 try {
-                    const client = await getSupabase();
-                    const { data, error } = await client.auth.signInWithPassword({ email, password });
-                    if (error) {
-                        showMessage(error.message || 'Inloggen mislukt', 'error');
-                        return;
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.valid) {
+                        setAuthToken(data.token);
+                        showMessage('Succesvol ingelogd! Je wordt doorgestuurd...', 'success');
+                        setTimeout(() => { window.location.href = '/'; }, 800);
+                    } else {
+                        showMessage('Ongeldige toegangscode', 'error');
                     }
-                    setAuthToken(data.session.access_token);
-                    showMessage('Succesvol ingelogd! Je wordt doorgestuurd...', 'success');
-                    setTimeout(() => { window.location.href = '/'; }, 800);
                 } catch (err) {
-                    showMessage(err.message || 'Er is een fout opgetreden', 'error');
+                    showMessage('Er is een fout opgetreden', 'error');
                 } finally {
                     loginBtn.disabled = false;
                     loading.classList.remove('show');
@@ -230,55 +174,16 @@
                 }
             });
 
-            document.getElementById('signupForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('signupEmail').value.trim();
-                const password = document.getElementById('signupPassword').value;
-                const signupBtn = document.getElementById('signupBtn');
-                const loading = document.getElementById('signupLoading');
-                const btnText = document.querySelector('#signupBtn .btn-text');
-                signupBtn.disabled = true;
-                loading.classList.add('show');
-                btnText.style.display = 'none';
-
-                try {
-                    const client = await getSupabase();
-                    const { data, error } = await client.auth.signUp({ email, password });
-                    if (error) {
-                        showMessage(error.message || 'Registreren mislukt', 'error');
-                        return;
-                    }
-                    if (data.session) {
-                        setAuthToken(data.session.access_token);
-                        showMessage('Account aangemaakt! Je wordt doorgestuurd...', 'success');
-                        setTimeout(() => { window.location.href = '/'; }, 800);
-                    } else {
-                        showMessage('Controleer je e-mail om je account te bevestigen.', 'success');
-                        toggleSection(false);
-                    }
-                } catch (err) {
-                    showMessage(err.message || 'Er is een fout opgetreden', 'error');
-                } finally {
-                    signupBtn.disabled = false;
-                    loading.classList.remove('show');
-                    btnText.style.display = 'block';
-                }
-            });
-
-            document.getElementById('showSignup').addEventListener('click', (e) => { e.preventDefault(); toggleSection(true); });
-            document.getElementById('showLogin').addEventListener('click', (e) => { e.preventDefault(); toggleSection(false); });
-
             document.getElementById('togglePassword').addEventListener('click', () => {
-                const input = document.getElementById('password');
+                const input = document.getElementById('token');
                 const icon = document.getElementById('togglePassword').querySelector('i');
-                if (input.type === 'password') { input.type = 'text'; icon.className = 'fas fa-eye-slash'; }
-                else { input.type = 'password'; icon.className = 'fas fa-eye'; }
-            });
-            document.getElementById('toggleSignupPassword').addEventListener('click', () => {
-                const input = document.getElementById('signupPassword');
-                const icon = document.getElementById('toggleSignupPassword').querySelector('i');
-                if (input.type === 'password') { input.type = 'text'; icon.className = 'fas fa-eye-slash'; }
-                else { input.type = 'password'; icon.className = 'fas fa-eye'; }
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.className = 'fas fa-eye-slash';
+                } else {
+                    input.type = 'password';
+                    icon.className = 'fas fa-eye';
+                }
             });
         });
     </script>
